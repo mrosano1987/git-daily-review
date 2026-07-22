@@ -1,0 +1,66 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Daily Review - Today",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "windows": {
+        "command": "py",
+        "args": ["-3", "scripts/daily_review.py"]
+      },
+      "args": ["scripts/daily_review.py"],
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "always", "focus": true, "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Daily Review - Collect only",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "windows": {
+        "command": "py",
+        "args": ["-3", "scripts/daily_review.py", "--collect-only"]
+      },
+      "args": ["scripts/daily_review.py", "--collect-only"],
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Daily Review - Last 3 days",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "windows": {
+        "command": "py",
+        "args": ["-3", "scripts/daily_review.py", "--days", "3"]
+      },
+      "args": ["scripts/daily_review.py", "--days", "3"],
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Setup Wizard",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "windows": {
+        "command": "py",
+        "args": ["-3", "setup.py"]
+      },
+      "args": ["setup.py"],
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Install Schedule",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "windows": {
+        "command": "py",
+        "args": ["-3", "scripts/scheduler.py", "--install"]
+      },
+      "args": ["scripts/scheduler.py", "--install"],
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    }
+  ]
+}

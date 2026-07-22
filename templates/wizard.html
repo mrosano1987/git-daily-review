@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Git Daily Review — Setup Wizard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #242836; --border: #2e3348;
+    --text: #e4e6f0; --text2: #8b8fa8; --accent: #6c8cff; --accent2: #4ecdc4;
+    --success: #4ecdc4; --error: #ff6b6b; --warning: #ffd93d;
+    --radius: 12px; --font: 'DM Sans', sans-serif; --mono: 'JetBrains Mono', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh;
+         display: flex; justify-content: center; padding: 40px 20px; }
+  .app { width: 100%; max-width: 720px; }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 48px; }
+  .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px;
+               background: linear-gradient(135deg, var(--accent), var(--accent2));
+               -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .header p { color: var(--text2); font-size: 15px; }
+
+  /* Progress */
+  .progress { display: flex; gap: 4px; margin-bottom: 40px; }
+  .progress-step { flex: 1; height: 4px; background: var(--border); border-radius: 2px;
+                   transition: background 0.3s; }
+  .progress-step.active { background: var(--accent); }
+  .progress-step.done { background: var(--accent2); }
+
+  /* Step labels */
+  .step-labels { display: flex; justify-content: space-between; margin-bottom: 32px; }
+  .step-label { font-size: 12px; color: var(--text2); text-transform: uppercase;
+                letter-spacing: 0.5px; opacity: 0.5; transition: all 0.3s; }
+  .step-label.active { color: var(--accent); opacity: 1; }
+
+  /* Card */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+          padding: 32px; margin-bottom: 24px; }
+  .card h2 { font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+  .card .subtitle { color: var(--text2); font-size: 14px; margin-bottom: 24px; }
+
+  /* Form elements */
+  label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px;
+          color: var(--text2); text-transform: uppercase; letter-spacing: 0.3px; }
+  input[type="text"], input[type="number"], input[type="password"], textarea, select {
+    width: 100%; padding: 12px 14px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-family: var(--font); font-size: 14px;
+    outline: none; transition: border-color 0.2s; }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 80px; }
+  select { cursor: pointer; }
+  .field { margin-bottom: 20px; }
+  .field-row { display: flex; gap: 16px; }
+  .field-row .field { flex: 1; }
+  .hint { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+  /* Chips (multi-select) */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { padding: 8px 16px; background: var(--surface2); border: 1px solid var(--border);
+          border-radius: 20px; font-size: 13px; cursor: pointer; transition: all 0.2s;
+          user-select: none; }
+  .chip:hover { border-color: var(--accent); }
+  .chip.selected { background: rgba(108,140,255,0.15); border-color: var(--accent);
+                   color: var(--accent); }
+
+  /* Repo cards */
+  .repo-card { background: var(--surface2); border: 1px solid var(--border);
+               border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  .repo-card .repo-header { display: flex; justify-content: space-between;
+                            align-items: center; margin-bottom: 12px; }
+  .repo-card .repo-name { font-weight: 600; font-size: 15px; }
+  .repo-card .repo-path { font-family: var(--mono); font-size: 12px; color: var(--text2); }
+  .repo-card .tech-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .tech-tag { font-size: 11px; padding: 3px 10px; background: rgba(78,205,196,0.12);
+              color: var(--accent2); border-radius: 10px; }
+  .btn-remove { background: none; border: none; color: var(--error); cursor: pointer;
+                font-size: 18px; padding: 4px 8px; border-radius: 4px; }
+  .btn-remove:hover { background: rgba(255,107,107,0.1); }
+  .btn-add { background: none; border: 1px dashed var(--border); border-radius: 8px;
+             padding: 14px; color: var(--text2); cursor: pointer; width: 100%;
+             font-family: var(--font); font-size: 14px; transition: all 0.2s; }
+  .btn-add:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Gate groups */
+  .gate-group { margin-bottom: 20px; }
+  .gate-group h3 { font-size: 14px; font-weight: 600; margin-bottom: 10px;
+                   display: flex; align-items: center; gap: 8px; }
+  .gate-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+               background: var(--surface2); border-radius: 8px; margin-bottom: 6px; }
+  .gate-item input[type="checkbox"] { margin-top: 3px; accent-color: var(--accent); }
+  .gate-item .gate-id { font-family: var(--mono); font-size: 12px; color: var(--accent);
+                        min-width: 70px; }
+  .gate-item .gate-desc { font-size: 13px; color: var(--text2); }
+
+  /* Severity dots */
+  .sev-critical { color: var(--error); }
+  .sev-error { color: var(--error); }
+  .sev-warning { color: var(--warning); }
+  .sev-info { color: var(--accent); }
+
+  /* Buttons */
+  .actions { display: flex; justify-content: space-between; margin-top: 32px; }
+  .btn { padding: 12px 28px; border-radius: 8px; font-family: var(--font); font-size: 14px;
+         font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #5a7aee; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Success screen */
+  .success-screen { text-align: center; padding: 60px 20px; }
+  .success-screen .icon { font-size: 64px; margin-bottom: 20px; }
+  .success-screen h2 { font-size: 24px; margin-bottom: 12px; color: var(--accent2); }
+  .success-screen .code-block { background: var(--surface2); border-radius: 8px; padding: 16px;
+                                font-family: var(--mono); font-size: 13px; text-align: left;
+                                margin: 20px 0; white-space: pre-wrap; color: var(--text2);
+                                border: 1px solid var(--border); }
+  .success-screen .code-block .cmd { color: var(--accent2); }
+
+  /* Scan UI */
+  .scan-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+  .scan-bar input { flex: 1; }
+  .scan-bar .btn { white-space: nowrap; }
+
+  /* Alert */
+  .alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
+  .alert-info { background: rgba(108,140,255,0.1); border: 1px solid rgba(108,140,255,0.2);
+                color: var(--accent); }
+  .alert-success { background: rgba(78,205,196,0.1); border: 1px solid rgba(78,205,196,0.2);
+                   color: var(--accent2); }
+  .alert-error { background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.2);
+                 color: var(--error); }
+
+  /* Hidden steps */
+  .step { display: none; }
+  .step.active { display: block; }
+
+  /* Loading */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border);
+             border-top-color: var(--accent); border-radius: 50%;
+             animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .model-combo { position: relative; }
+  .model-combo input { width: 100%; padding: 12px 14px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+    font-family: var(--mono); font-size: 13px; outline: none; transition: border-color .2s; }
+  .model-combo input:focus { border-color: var(--accent); }
+  .model-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    max-height: 260px; overflow-y: auto; z-index: 100; display: none; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+  .model-dropdown.open { display: block; }
+  .model-group-header { padding: 8px 14px 4px; font-size: 11px; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--text2); font-weight: 600; }
+  .model-option { padding: 10px 14px; cursor: pointer; font-family: var(--mono);
+    font-size: 13px; transition: background .15s; display: flex; align-items: center;
+    justify-content: space-between; gap: 8px; }
+  .model-option:hover, .model-option.focused { background: var(--surface2); }
+  .model-option .badge { font-size: 10px; padding: 2px 8px; border-radius: 10px;
+    background: rgba(78,205,196,.15); color: var(--accent2); white-space: nowrap; }
+  .model-option .badge.local { background: rgba(108,140,255,.15); color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>🔍 Git Daily Review</h1>
+    <p>Setup wizard — configure your automated daily code review</p>
+  </div>
+
+  <div class="progress" id="progress"></div>
+  <div class="step-labels" id="stepLabels"></div>
+
+  <!-- Step 1: Repositories -->
+  <div class="step active" data-step="0">
+    <div class="card">
+      <h2>Repositories</h2>
+      <p class="subtitle">Which Git repositories should be monitored?</p>
+      <div class="scan-bar">
+        <input type="text" id="scanDir" placeholder="Path to scan for repos (e.g. ~/projects)">
+        <button class="btn btn-secondary" onclick="scanRepos()">🔍 Scan</button>
+      </div>
+      <div id="repoList"></div>
+      <button class="btn-add" onclick="addRepoManual()">+ Add repository manually</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Project Info -->
+  <div class="step" data-step="1">
+    <div class="card">
+      <h2>Project Info</h2>
+      <p class="subtitle">Give the AI reviewer context about your project.</p>
+      <div class="field">
+        <label>Project name</label>
+        <input type="text" id="projectName" placeholder="My Awesome App">
+      </div>
+      <div class="field">
+        <label>Description</label>
+        <textarea id="projectDesc" placeholder="Brief description of what the project does, who uses it, and the main tech stack."></textarea>
+      </div>
+      <div class="field">
+        <label>Team structure (optional)</label>
+        <input type="text" id="teamStructure" placeholder="e.g. 3 frontend devs, 2 backend, 1 QA">
+      </div>
+      <div class="field">
+        <label>Domain / business context (optional)</label>
+        <textarea id="domainDesc" placeholder="What domain does the project operate in? Any business rules the reviewer should know about?"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Conventions -->
+  <div class="step" data-step="2">
+    <div class="card">
+      <h2>Code Conventions</h2>
+      <p class="subtitle">Select presets for your tech stack, or add custom rules.</p>
+      <label>Tech stack presets</label>
+      <div class="chips" id="conventionChips"></div>
+      <div class="field" style="margin-top: 24px;">
+        <label>Custom conventions (optional, one per line)</label>
+        <textarea id="customConventions" rows="4"
+          placeholder="e.g.&#10;Always use dependency injection via constructor&#10;Log with structured logger, never print&#10;Database queries must use parameterized statements"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: Quality Gates -->
+  <div class="step" data-step="3">
+    <div class="card">
+      <h2>Quality Gates</h2>
+      <p class="subtitle">Which checks should the AI verify on every commit?</p>
+      <div id="gatesList"></div>
+    </div>
+  </div>
+
+  <!-- Step 5: Schedule & AI -->
+  <div class="step" data-step="4">
+    <div class="card">
+      <h2>Schedule & AI Provider</h2>
+      <p class="subtitle">When should the review run, and which AI to use?</p>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Review time (hour)</label>
+          <input type="number" id="scheduleHour" value="17" min="0" max="23">
+        </div>
+        <div class="field">
+          <label>Minute</label>
+          <input type="number" id="scheduleMinute" value="0" min="0" max="59">
+        </div>
+        <div class="field">
+          <label>Timezone</label>
+          <select id="timezone">
+            <option value="Europe/Rome">Europe/Rome</option>
+            <option value="Europe/London">Europe/London</option>
+            <option value="Europe/Berlin">Europe/Berlin</option>
+            <option value="Europe/Paris">Europe/Paris</option>
+            <option value="America/New_York">America/New_York</option>
+            <option value="America/Chicago">America/Chicago</option>
+            <option value="America/Los_Angeles">America/Los_Angeles</option>
+            <option value="Asia/Tokyo">Asia/Tokyo</option>
+            <option value="Asia/Shanghai">Asia/Shanghai</option>
+            <option value="UTC">UTC</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Report language</label>
+        <select id="reportLang">
+          <option value="en">English</option>
+          <option value="it">Italiano</option>
+          <option value="es">Español</option>
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="pt">Português</option>
+          <option value="ja">日本語</option>
+          <option value="zh">中文</option>
+        </select>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:24px 0">
+
+      <div class="field">
+        <label>AI Provider</label>
+        <div class="chips" id="providerChips" style="margin-bottom:16px"></div>
+      </div>
+
+      <div class="field" id="modelFieldWrapper">
+        <label id="modelLabel">Model</label>
+        <div id="modelFieldInner"></div>
+      </div>
+
+      <!-- Dynamic fields per provider -->
+      <div id="providerFields"></div>
+
+      <button class="btn btn-secondary" onclick="testProviderConnection()" style="margin-top:4px">
+        Test connection
+      </button>
+      <div id="providerTestResult" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+
+  <!-- Step 6: RAG Service (optional) -->
+  <div class="step" data-step="5">
+    <div class="card">
+      <h2>RAG Service <span style="font-size:13px;color:var(--text2);font-weight:400">(optional)</span></h2>
+      <p class="subtitle">Connect an external RAG service to enrich reviews with semantic repository context — architecture, dependencies, historical issues. Leave empty to skip.</p>
+
+      <div class="field">
+        <label>RAG service URL</label>
+        <input type="text" id="ragUrl" placeholder="http://localhost:8000">
+        <p class="hint">Expected endpoints: <code style="font-family:var(--mono);font-size:12px">GET /health</code> and <code style="font-family:var(--mono);font-size:12px">POST /retrieve-context</code></p>
+      </div>
+
+      <button class="btn btn-secondary" onclick="testRagService()" style="margin-bottom:12px">
+        Test connection
+      </button>
+      <div id="ragTestResult"></div>
+
+      <div style="margin-top:24px;padding:16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text2);text-transform:uppercase;letter-spacing:0.3px">What the RAG service provides</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.7">
+          When reachable, the reviewer sends each diff to the RAG service and receives
+          back relevant context chunks (architecture docs, similar past issues, related components)
+          ranked by semantic relevance. This context is injected into the prompt before Claude
+          generates the review.<br><br>
+          If the service is not configured or not reachable, the review runs normally without it.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 7: Done -->
+  <div class="step" data-step="6">
+    <div class="card success-screen" id="successScreen">
+    </div>
+  </div>
+
+  <div class="actions" id="actions">
+    <button class="btn btn-secondary" id="btnPrev" onclick="prevStep()">← Back</button>
+    <button class="btn btn-primary" id="btnNext" onclick="nextStep()">Next →</button>
+  </div>
+</div>
+
+<script>
+const STEPS = ['Repos', 'Project', 'Conventions', 'Gates', 'Schedule', 'RAG', 'Done'];
+let currentStep = 0;
+let state = {
+  repositories: [],
+  conventionPresets: [],
+  selectedGates: { critical: [], errors: [], warnings: [], info: [] },
+  osInfo: {},
+  selectedProvider: 'anthropic'
+};
+
+// ── Init ──
+async function init() {
+  renderProgress();
+  renderConventionChips();
+  renderGates();
+  updateButtons();
+  renderProviderChips();
+  renderProviderFields();
+  renderProviderModels();
+  // Detect OS
+  const resp = await fetch('/api/detect-os');
+  state.osInfo = await resp.json();
+  document.getElementById('scanDir').placeholder = state.osInfo.home + '/projects';
+}
+
+function renderProgress() {
+  const bar = document.getElementById('progress');
+  const labels = document.getElementById('stepLabels');
+  bar.innerHTML = STEPS.map((_, i) =>
+    `<div class="progress-step ${i < currentStep ? 'done' : i === currentStep ? 'active' : ''}"></div>`
+  ).join('');
+  labels.innerHTML = STEPS.map((s, i) =>
+    `<span class="step-label ${i === currentStep ? 'active' : ''}">${s}</span>`
+  ).join('');
+}
+
+function showStep(n) {
+  document.querySelectorAll('.step').forEach((el, i) => {
+    el.classList.toggle('active', i === n);
+  });
+  currentStep = n;
+  renderProgress();
+  updateButtons();
+}
+
+function updateButtons() {
+  const actions = document.getElementById('actions');
+  const prev = document.getElementById('btnPrev');
+  const next = document.getElementById('btnNext');
+  if (currentStep === STEPS.length - 1) {
+    actions.style.display = 'none';
+  } else {
+    actions.style.display = 'flex';
+    prev.style.visibility = currentStep === 0 ? 'hidden' : 'visible';
+    next.textContent = currentStep === STEPS.length - 2 ? '✅ Save & Finish' : 'Next →';
+  }
+}
+
+function nextStep() {
+  if (currentStep === 0 && state.repositories.length === 0) {
+    alert('Please add at least one repository.');
+    return;
+  }
+  if (currentStep === STEPS.length - 2) {
+    saveConfig();
+    return;
+  }
+  showStep(currentStep + 1);
+}
+
+function prevStep() {
+  if (currentStep > 0) showStep(currentStep - 1);
+}
+
+// ── Repos ──
+async function scanRepos() {
+  const dir = document.getElementById('scanDir').value || state.osInfo.home;
+  const btn = document.querySelector('.scan-bar .btn');
+  btn.innerHTML = '<span class="spinner"></span> Scanning...';
+  btn.disabled = true;
+
+  try {
+    const resp = await fetch(`/api/scan-repos?dir=${encodeURIComponent(dir)}`);
+    const data = await resp.json();
+    for (const repo of data.repos) {
+      if (!state.repositories.find(r => r.path === repo.path)) {
+        repo.key = repo.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+        state.repositories.push(repo);
+      }
+    }
+    renderRepos();
+  } catch (e) {
+    console.error(e);
+  } finally {
+    btn.innerHTML = '🔍 Scan';
+    btn.disabled = false;
+  }
+}
+
+function addRepoManual() {
+  const path = prompt('Enter the full path to the Git repository:');
+  if (!path) return;
+  const name = path.split('/').pop() || path.split('\\').pop() || 'repo';
+  state.repositories.push({
+    path, name, key: name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase(),
+    remote_url: '', current_branch: '', tech_stack: { languages: [], frameworks: [], tools: [] }
+  });
+  renderRepos();
+}
+
+function removeRepo(index) {
+  state.repositories.splice(index, 1);
+  renderRepos();
+}
+
+function renderRepos() {
+  const list = document.getElementById('repoList');
+  list.innerHTML = state.repositories.map((r, i) => {
+    const techs = [...(r.tech_stack?.languages || []), ...(r.tech_stack?.frameworks || [])];
+    return `<div class="repo-card">
+      <div class="repo-header">
+        <div>
+          <div class="repo-name">${r.name}</div>
+          <div class="repo-path">${r.path}</div>
+          ${techs.length ? `<div class="tech-tags">${techs.map(t => `<span class="tech-tag">${t}</span>`).join('')}</div>` : ''}
+        </div>
+        <button class="btn-remove" onclick="removeRepo(${i})">×</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Conventions ──
+const CONVENTION_PRESETS = [
+  { id: 'typescript', label: 'TypeScript' },
+  { id: 'angular', label: 'Angular' },
+  { id: 'react', label: 'React' },
+  { id: 'python', label: 'Python' },
+  { id: 'java', label: 'Java' },
+  { id: 'go', label: 'Go' },
+  { id: 'dotnet', label: '.NET / C#' },
+  { id: 'mobile_capacitor', label: 'Capacitor' },
+  { id: 'mobile_react_native', label: 'React Native' },
+];
+
+function renderConventionChips() {
+  const container = document.getElementById('conventionChips');
+  container.innerHTML = CONVENTION_PRESETS.map(p =>
+    `<div class="chip ${state.conventionPresets.includes(p.id) ? 'selected' : ''}"
+          onclick="togglePreset('${p.id}', this)">${p.label}</div>`
+  ).join('');
+}
+
+function togglePreset(id, el) {
+  const idx = state.conventionPresets.indexOf(id);
+  if (idx >= 0) { state.conventionPresets.splice(idx, 1); el.classList.remove('selected'); }
+  else { state.conventionPresets.push(id); el.classList.add('selected'); }
+  renderGates(); // Update gates based on selected languages
+}
+
+// ── Quality Gates ──
+const UNIVERSAL_GATES = {
+  critical: [
+    { id: 'SEC-001', name: 'No hardcoded secrets', desc: 'No secrets, tokens, passwords, or API keys in code' },
+    { id: 'SEC-002', name: 'No hardcoded URLs', desc: 'API URLs must use environment config' },
+  ],
+  errors: [
+    { id: 'GIT-003', name: 'No commits on protected branches', desc: 'No direct commits on main/master/develop' },
+  ],
+  warnings: [
+    { id: 'GIT-001', name: 'Vague commit messages', desc: 'Messages must be descriptive (>10 chars)' },
+    { id: 'GIT-002', name: 'Branch naming', desc: 'Branches should follow feature/bugfix/hotfix/ pattern' },
+  ],
+  info: [
+    { id: 'DOC-001', name: 'Missing documentation', desc: 'New public APIs should have docs' },
+    { id: 'TEST-001', name: 'Missing tests', desc: 'New files should have test files' },
+  ],
+};
+
+const LANG_GATES = {
+  typescript: { errors: [
+    { id: 'TS-001', name: 'No explicit any', desc: 'Avoid "any" — use specific types' },
+    { id: 'TS-002', name: 'No console.log', desc: 'Remove console.log from production code' },
+  ]},
+  python: { errors: [
+    { id: 'PY-001', name: 'No bare except', desc: 'Use specific exception types' },
+    { id: 'PY-002', name: 'No print()', desc: 'Use logging module in production' },
+  ]},
+  java: { errors: [
+    { id: 'JV-001', name: 'No System.out', desc: 'Use a logging framework' },
+    { id: 'JV-002', name: 'Null safety', desc: 'Use Optional or null checks' },
+  ]},
+  go: { errors: [
+    { id: 'GO-001', name: 'Unchecked error', desc: 'All errors must be checked' },
+    { id: 'GO-002', name: 'No fmt.Println', desc: 'Use structured logger' },
+  ]},
+};
+
+function renderGates() {
+  const container = document.getElementById('gatesList');
+  let gates = JSON.parse(JSON.stringify(UNIVERSAL_GATES));
+  // Merge language-specific gates
+  for (const preset of state.conventionPresets) {
+    const lg = LANG_GATES[preset];
+    if (lg) {
+      for (const [sev, items] of Object.entries(lg)) {
+        gates[sev] = gates[sev] || [];
+        for (const item of items) {
+          if (!gates[sev].find(g => g.id === item.id)) gates[sev].push(item);
+        }
+      }
+    }
+  }
+
+  const sevLabels = {
+    critical: ['🔴', 'Critical — blocks release'],
+    errors: ['🔴', 'Error — probable bug'],
+    warnings: ['🟡', 'Warning — needs review'],
+    info: ['🔵', 'Info — suggestions'],
+  };
+
+  container.innerHTML = Object.entries(gates).map(([sev, items]) => {
+    if (!items.length) return '';
+    const [icon, label] = sevLabels[sev];
+    return `<div class="gate-group">
+      <h3><span class="sev-${sev === 'errors' ? 'error' : sev}">${icon}</span> ${label}</h3>
+      ${items.map(g => `
+        <div class="gate-item">
+          <input type="checkbox" checked data-sev="${sev}" data-gate='${JSON.stringify(g)}'>
+          <span class="gate-id">${g.id}</span>
+          <div>
+            <div style="font-size:14px;font-weight:500">${g.name}</div>
+            <div class="gate-desc">${g.desc}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+  }).join('');
+}
+
+function collectGates() {
+  const result = { critical: [], errors: [], warnings: [], info: [] };
+  document.querySelectorAll('#gatesList input[type="checkbox"]:checked').forEach(cb => {
+    const sev = cb.dataset.sev;
+    const gate = JSON.parse(cb.dataset.gate);
+    result[sev].push(gate);
+  });
+  return result;
+}
+
+// ── API Key Test ──
+async function testProviderConnection() {
+  const result = document.getElementById('providerTestResult');
+  const keyEl  = document.getElementById('aiApiKey');
+  const urlEl  = document.getElementById('aiBaseUrl');
+  const payload = {
+    provider: state.selectedProvider,
+    model:    getSelectedModel(),
+    api_key:  keyEl ? keyEl.value.trim() : '',
+    base_url: urlEl ? urlEl.value.trim() : '',
+  };
+  result.innerHTML = '<span class="spinner"></span> Testing...';
+  try {
+    const resp = await fetch('/api/test-provider', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    result.innerHTML = data.ok
+      ? `<div class="alert alert-success">✅ Connected — ${data.provider} / ${data.model}</div>`
+      : `<div class="alert alert-error">❌ ${data.message}</div>`;
+  } catch (e) {
+    result.innerHTML = `<div class="alert alert-error">Connection error: ${e}</div>`;
+  }
+}
+
+// ── Save ──
+async function testRagService() {
+  const url = document.getElementById('ragUrl').value.trim();
+  const result = document.getElementById('ragTestResult');
+  if (!url) { result.innerHTML = '<div class="alert alert-info">Enter a URL first.</div>'; return; }
+  result.innerHTML = '<span class="spinner"></span> Testing...';
+  try {
+    const resp = await fetch('/api/test-rag', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ url })
+    });
+    const data = await resp.json();
+    result.innerHTML = data.ok
+      ? '<div class="alert alert-success">✅ RAG service is reachable!</div>'
+      : `<div class="alert alert-error">❌ ${data.message}</div>`;
+  } catch (e) {
+    result.innerHTML = `<div class="alert alert-error">Connection error: ${e}</div>`;
+  }
+}
+
+async function saveConfig() {
+  const customConv = document.getElementById('customConventions').value
+    .split('\n').map(s => s.trim()).filter(Boolean);
+
+  const apiKeyEl  = document.getElementById('aiApiKey');
+  const baseUrlEl = document.getElementById('aiBaseUrl');
+
+  const payload = {
+    repositories: state.repositories,
+    project_name: document.getElementById('projectName').value || 'My Project',
+    project_description: document.getElementById('projectDesc').value,
+    team_structure: document.getElementById('teamStructure').value,
+    domain_description: document.getElementById('domainDesc').value,
+    convention_presets: state.conventionPresets,
+    custom_conventions: customConv,
+    quality_gates: collectGates(),
+    schedule_hour: document.getElementById('scheduleHour').value,
+    schedule_minute: document.getElementById('scheduleMinute').value,
+    timezone: document.getElementById('timezone').value,
+    ai_provider: state.selectedProvider,
+    ai_model: getSelectedModel(),
+    ai_api_key: apiKeyEl  ? apiKeyEl.value.trim()  : '',
+    ai_base_url: baseUrlEl ? baseUrlEl.value.trim() : '',
+    report_language: document.getElementById('reportLang').value,
+    rag_url: document.getElementById('ragUrl').value.trim(),
+  };
+
+  try {
+    const resp = await fetch('/api/save', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    if (data.success) {
+      showSuccess(data);
+    } else {
+      alert('Error saving: ' + data.error);
+    }
+  } catch (e) {
+    alert('Error: ' + e);
+  }
+}
+
+function showSuccess(data) {
+  showStep(STEPS.length - 1);
+  const os = state.osInfo.os;
+  const pyCmd = os === 'Windows' ? 'py -3' : 'python3';
+  const envCmd = data.env_instructions || `export ANTHROPIC_API_KEY="your-key-here"`;
+
+  document.getElementById('successScreen').innerHTML = `
+    <div class="icon">🎉</div>
+    <h2>Configuration saved!</h2>
+    <p style="color:var(--text2);margin-bottom:24px">Your config files have been generated. Here's what to do next:</p>
+
+    <div style="text-align:left">
+      <h3 style="font-size:15px;margin-bottom:8px">1. Set your API key</h3>
+      <div class="code-block">${envCmd}</div>
+
+      <h3 style="font-size:15px;margin-bottom:8px">2. Test the review</h3>
+      <div class="code-block"><span class="cmd">${pyCmd} scripts/daily_review.py</span></div>
+
+      <h3 style="font-size:15px;margin-bottom:8px">3. Install the schedule</h3>
+      <div class="code-block"><span class="cmd">${pyCmd} scripts/scheduler.py --install</span></div>
+    </div>
+
+    ${data.rag_enabled ? `<div class="alert alert-success" style="margin-top:20px;text-align:left">🔍 RAG service configured — reviews will be enriched with semantic context when the service is reachable.</div>` : '<div class="alert alert-info" style="margin-top:20px;text-align:left">💡 No RAG service configured. You can add one later by setting <code style="font-family:var(--mono)">rag_url</code> in config.yaml.</div>'}
+    <button class="btn btn-primary" style="margin-top:16px" onclick="fetch('/api/shutdown');window.close();">
+      Close wizard
+    </button>
+  `;
+}
+
+// ── Provider configuration ──
+const PROVIDERS = {
+  anthropic: {
+    label: 'Anthropic (Claude)', color: '#6c8cff',
+    models: [
+      {id:'claude-haiku-4-5-20251001', label:'Haiku 4.5 — fastest, cheapest'},
+      {id:'claude-sonnet-4-20250514',  label:'Sonnet 4 — balanced'},
+      {id:'claude-opus-4-5',           label:'Opus 4.5 — most thorough'},
+    ],
+    fields: [{type:'password', id:'aiApiKey', label:'Anthropic API Key',
+              placeholder:'sk-ant-api03-...',
+              hint:'<a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--accent)">console.anthropic.com</a>'}],
+  },
+  openai: {
+    label: 'OpenAI (ChatGPT)', color: '#10a37f',
+    models: [
+      {id:'gpt-4o-mini', label:'GPT-4o mini — fastest, cheapest'},
+      {id:'gpt-4o',      label:'GPT-4o — balanced'},
+      {id:'o1-mini',     label:'o1-mini — reasoning'},
+    ],
+    fields: [{type:'password', id:'aiApiKey', label:'OpenAI API Key',
+              placeholder:'sk-...',
+              hint:'<a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--accent)">platform.openai.com</a>'}],
+  },
+  ollama: {
+    label: 'Ollama (local)', color: '#4ecdc4',
+    models: [
+      {id:'qwen2.5:7b',    label:'Qwen 2.5 7B — recommended'},
+      {id:'llama3.2:3b',   label:'Llama 3.2 3B — very fast'},
+      {id:'llama3.1:8b',   label:'Llama 3.1 8B — quality'},
+      {id:'mistral:7b',    label:'Mistral 7B — fast'},
+      {id:'deepseek-r1:7b',label:'DeepSeek R1 7B — reasoning'},
+    ],
+    fields: [{type:'text', id:'aiBaseUrl', label:'Ollama base URL',
+              placeholder:'http://localhost:11434',
+              hint:'Make sure Ollama is running: <code style="font-family:var(--mono);font-size:11px">ollama serve</code>'}],
+  },
+  gemini: {
+    label: 'Google Gemini', color: '#ea4335',
+    models: [
+      {id:'gemini-2.0-flash', label:'Gemini 2.0 Flash — fastest'},
+      {id:'gemini-1.5-flash', label:'Gemini 1.5 Flash — balanced'},
+      {id:'gemini-1.5-pro',   label:'Gemini 1.5 Pro — thorough'},
+    ],
+    fields: [{type:'password', id:'aiApiKey', label:'Gemini API Key',
+              placeholder:'AI...',
+              hint:'<a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent)">aistudio.google.com</a>'}],
+  },
+};
+
+function renderProviderChips() {
+  const container = document.getElementById('providerChips');
+  container.innerHTML = Object.entries(PROVIDERS).map(([id, p]) =>
+    `<div class="chip ${state.selectedProvider===id?'selected':''}"
+          style="${state.selectedProvider===id?`border-color:${p.color};color:${p.color};background:${p.color}22`:''}"
+          onclick="selectProvider('${id}')">${p.label}</div>`
+  ).join('');
+}
+
+// ── Model state ──
+let ollamaLocalModels  = [];  // pulled from running Ollama instance
+let ollamaFetchedOnce  = false;
+let modelDropdownOpen  = false;
+
+// Curated popular Ollama models — always shown as suggestions
+const OLLAMA_POPULAR = [
+  { id:'qwen2.5:7b',       label:'Qwen 2.5 7B',       tag:'recommended' },
+  { id:'qwen2.5:14b',      label:'Qwen 2.5 14B',       tag:'quality' },
+  { id:'qwen2.5:32b',      label:'Qwen 2.5 32B',       tag:'high quality' },
+  { id:'llama3.2:3b',      label:'Llama 3.2 3B',       tag:'very fast' },
+  { id:'llama3.2:1b',      label:'Llama 3.2 1B',       tag:'ultra fast' },
+  { id:'llama3.1:8b',      label:'Llama 3.1 8B',       tag:'balanced' },
+  { id:'llama3.1:70b',     label:'Llama 3.1 70B',      tag:'large' },
+  { id:'mistral:7b',       label:'Mistral 7B',         tag:'fast' },
+  { id:'mistral-nemo',     label:'Mistral Nemo 12B',   tag:'balanced' },
+  { id:'deepseek-r1:7b',   label:'DeepSeek R1 7B',     tag:'reasoning' },
+  { id:'deepseek-r1:14b',  label:'DeepSeek R1 14B',    tag:'reasoning' },
+  { id:'deepseek-r1:32b',  label:'DeepSeek R1 32B',    tag:'reasoning' },
+  { id:'phi4:14b',         label:'Phi 4 14B',          tag:'Microsoft' },
+  { id:'phi4-mini',        label:'Phi 4 Mini',         tag:'compact' },
+  { id:'gemma3:4b',        label:'Gemma 3 4B',         tag:'Google' },
+  { id:'gemma3:12b',       label:'Gemma 3 12B',        tag:'Google' },
+  { id:'gemma3:27b',       label:'Gemma 3 27B',        tag:'Google' },
+  { id:'codellama:7b',     label:'Code Llama 7B',      tag:'coding' },
+  { id:'codellama:34b',    label:'Code Llama 34B',     tag:'coding' },
+  { id:'starcoder2:7b',    label:'StarCoder2 7B',      tag:'coding' },
+  { id:'nomic-embed-text', label:'Nomic Embed Text',   tag:'embeddings' },
+];
+
+async function fetchOllamaModels(baseUrl) {
+  try {
+    const resp = await fetch('/api/ollama-models', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ url: baseUrl || 'http://localhost:11434' })
+    });
+    const data = await resp.json();
+    ollamaLocalModels = data.models || [];
+    ollamaFetchedOnce = true;
+    return ollamaLocalModels;
+  } catch {
+    ollamaLocalModels = [];
+    return [];
+  }
+}
+
+function getCurrentModelValue() {
+  const inp = document.getElementById('aiModelInput');
+  return inp ? inp.value.trim() : '';
+}
+
+function renderModelCombo(currentValue) {
+  const wrapper = document.getElementById('modelFieldInner');
+  const isOllama = state.selectedProvider === 'ollama';
+
+  if (!isOllama) {
+    // Standard select for non-Ollama providers
+    const models = PROVIDERS[state.selectedProvider]?.models || [];
+    wrapper.innerHTML = `<select id="aiModel" style="width:100%;padding:12px 14px;
+      background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+      color:var(--text);font-family:var(--font);font-size:14px;outline:none">
+      ${models.map(m => `<option value="${m.id}" ${currentValue===m.id?'selected':''}>${m.label}</option>`).join('')}
+    </select>`;
+    return;
+  }
+
+  // Ollama: combo input with dropdown
+  const localSet = new Set(ollamaLocalModels);
+  const val = currentValue || OLLAMA_POPULAR[0].id;
+
+  // Merge: local models first, then popular suggestions not already local
+  const localItems  = ollamaLocalModels.map(id => ({ id, local: true  }));
+  const popularItems = OLLAMA_POPULAR.filter(m => !localSet.has(m.id));
+
+  wrapper.innerHTML = `
+    <div class="model-combo" id="modelComboWrap">
+      <input type="text" id="aiModelInput" value="${val}" autocomplete="off"
+        placeholder="e.g. qwen2.5:7b or any ollama model"
+        oninput="filterModelDropdown(this.value)"
+        onfocus="openModelDropdown()"
+        onblur="setTimeout(()=>closeModelDropdown(),150)"
+        onkeydown="modelKeyNav(event)">
+      <div class="model-dropdown" id="modelDropdown">
+        ${localItems.length ? `
+          <div class="model-group-header">✅ installed locally</div>
+          ${localItems.map((m,i) => `
+            <div class="model-option" data-val="${m.id}" onclick="selectModelOption('${m.id}')">
+              <span>${m.id}</span>
+              <span class="badge local">local</span>
+            </div>`).join('')}` : ''}
+        ${popularItems.length ? `
+          <div class="model-group-header">🌐 available to pull</div>
+          ${popularItems.map(m => `
+            <div class="model-option" data-val="${m.id}" onclick="selectModelOption('${m.id}')">
+              <span>${m.label} <span style="font-size:11px;color:var(--text2)">(${m.id})</span></span>
+              <span class="badge">${m.tag}</span>
+            </div>`).join('')}` : ''}
+      </div>
+    </div>
+    <p class="hint" style="margin-top:6px">
+      Type any model name or pick from the list. Pull a model with:
+      <code style="font-family:var(--mono);font-size:11px">ollama pull &lt;model&gt;</code>
+      &nbsp;·&nbsp;
+      <a href="https://ollama.com/library" target="_blank" style="color:var(--accent)">Browse all models ↗</a>
+    </p>`;
+}
+
+function openModelDropdown() {
+  document.getElementById('modelDropdown')?.classList.add('open');
+  modelDropdownOpen = true;
+}
+
+function closeModelDropdown() {
+  document.getElementById('modelDropdown')?.classList.remove('open');
+  modelDropdownOpen = false;
+}
+
+function selectModelOption(val) {
+  const inp = document.getElementById('aiModelInput');
+  if (inp) { inp.value = val; inp.focus(); }
+  closeModelDropdown();
+}
+
+function filterModelDropdown(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('#modelDropdown .model-option').forEach(el => {
+    const matches = el.dataset.val.toLowerCase().includes(q) ||
+                    el.textContent.toLowerCase().includes(q);
+    el.style.display = matches ? '' : 'none';
+  });
+  // Show/hide group headers if all items in group are hidden
+  document.querySelectorAll('#modelDropdown .model-group-header').forEach(header => {
+    let next = header.nextElementSibling;
+    let anyVisible = false;
+    while (next && !next.classList.contains('model-group-header')) {
+      if (next.style.display !== 'none') anyVisible = true;
+      next = next.nextElementSibling;
+    }
+    header.style.display = anyVisible ? '' : 'none';
+  });
+  openModelDropdown();
+}
+
+let _focusedOptionIdx = -1;
+function modelKeyNav(e) {
+  const opts = [...document.querySelectorAll('#modelDropdown .model-option')]
+    .filter(el => el.style.display !== 'none');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    _focusedOptionIdx = Math.min(_focusedOptionIdx + 1, opts.length - 1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    _focusedOptionIdx = Math.max(_focusedOptionIdx - 1, 0);
+  } else if (e.key === 'Enter' && _focusedOptionIdx >= 0) {
+    e.preventDefault();
+    selectModelOption(opts[_focusedOptionIdx].dataset.val);
+    return;
+  } else if (e.key === 'Escape') {
+    closeModelDropdown(); return;
+  } else { _focusedOptionIdx = -1; }
+  opts.forEach((el, i) => el.classList.toggle('focused', i === _focusedOptionIdx));
+  opts[_focusedOptionIdx]?.scrollIntoView({block:'nearest'});
+}
+
+function getSelectedModel() {
+  if (state.selectedProvider === 'ollama') {
+    return document.getElementById('aiModelInput')?.value.trim() || OLLAMA_POPULAR[0].id;
+  }
+  return document.getElementById('aiModel')?.value || '';
+}
+
+function selectProvider(id) {
+  state.selectedProvider = id;
+  renderProviderChips();
+  renderProviderFields();
+  document.getElementById('providerTestResult').innerHTML = '';
+}
+
+function renderProviderModels() {
+  renderModelCombo('');
+  // If Ollama, fetch local models then re-render
+  if (state.selectedProvider === 'ollama') {
+    const urlEl = document.getElementById('aiBaseUrl');
+    const url = urlEl?.value.trim() || 'http://localhost:11434';
+    fetchOllamaModels(url).then(() => renderModelCombo(''));
+  }
+}
+
+function renderProviderFields() {
+  const container = document.getElementById('providerFields');
+  const fields = PROVIDERS[state.selectedProvider]?.fields || [];
+  container.innerHTML = fields.map(f => `
+    <div class="field">
+      <label>${f.label}</label>
+      <input type="${f.type}" id="${f.id}" placeholder="${f.placeholder}"
+        ${f.id === 'aiBaseUrl' ? 'onchange="onOllamaUrlChange(this.value)"' : ''}>
+      <p class="hint">${f.hint}</p>
+    </div>
+  `).join('');
+  renderModelCombo('');
+  if (state.selectedProvider === 'ollama') {
+    const url = document.getElementById('aiBaseUrl')?.value || 'http://localhost:11434';
+    fetchOllamaModels(url).then(() => renderModelCombo(getSelectedModel()));
+  }
+}
+
+function onOllamaUrlChange(url) {
+  ollamaFetchedOnce = false;
+  fetchOllamaModels(url).then(() => renderModelCombo(getSelectedModel()));
+}
+
+// ── Boot ──
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+# Git Daily Review — configuration template
+# Copy to config.yaml and edit, or run `python3 setup.py` to use the wizard.
+
+repositories:
+  my_app:
+    name: my_app
+    path: ~/projects/my_app          # local clone of the repository
+    remote: origin
+    branches: []                      # empty = scan all remote branches
+    exclude_branches:
+      - archive/*
+
+schedule:
+  hour: 17
+  minute: 0
+  timezone: Europe/Rome
+
+ai:
+  provider: ollama                    # anthropic | openai | ollama | gemini
+  model: qwen2.5-coder:7b
+  api_key_env: ''                     # env var holding the API key (cloud providers)
+  base_url: ''                        # Ollama base URL, default http://localhost:11434
+  max_tokens: 4096
+  num_ctx: 32768                      # Ollama context window (prevents silent truncation)
+  min_diff_lines_for_review: 5
+  kb_learning: true                   # extract KB suggestions after each review
+
+# Optional external RAG service (see scripts/rag_client.py for the contract)
+# rag_url: "http://localhost:8000"
+
+reports:
+  output_dir: ./reports
+  trend_days: 7
+  language: en
+
+notifications:
+  slack:
+    enabled: false
+    webhook_url: ''
+    channel: ''
+  email:
+    enabled: false

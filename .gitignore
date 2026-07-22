@@ -1,0 +1,33 @@
+# ── Secrets ──────────────────────────────────────────────
+.env
+*.pem
+*.key
+
+# ── Personal / generated configuration ────────────────────
+# Commit only the *.example.yaml templates.
+config/config.yaml
+config/knowledge-base.yaml
+config/kb_suggestions/*.yaml
+
+# ── Generated output ──────────────────────────────────────
+reports/*
+!reports/.gitkeep
+logs/*
+!logs/.gitkeep
+scripts/run_review.bat
+
+# ── Python ────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ── Node / MCP server ─────────────────────────────────────
+mcp/node_modules/
+mcp/dist/
+npm-debug.log*
+
+# ── OS / editor ───────────────────────────────────────────
+.DS_Store
+__MACOSX/
+*.swp

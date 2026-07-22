@@ -1,0 +1,83 @@
+# Git Daily Review — knowledge base template (7 layers: L0-L6)
+# Copy to knowledge-base.yaml and edit, or generate it with `python3 setup.py`.
+# The deeper you fill it, the more precise and project-specific the reviews become.
+
+# ── L0: Identity ──────────────────────────────────────────
+project:
+  name: My App
+  description: >
+    Short description of what the product does and who its users are.
+  team:
+    structure: 2 frontend, 2 backend, 1 QA
+
+# ── L1: Architecture ──────────────────────────────────────
+architecture:
+  repositories:
+    my_app:
+      name: my_app
+      description: 'Main application'
+      tech_stack:
+        languages: [TypeScript]
+        frameworks: [Angular, Capacitor]
+        tools: []
+  patterns: []
+
+# ── L2: Conventions ───────────────────────────────────────
+conventions:
+  typescript:
+    rules:
+      - Avoid explicit `any` — use specific types or generics
+      - Use interfaces for data shapes, types for unions
+      - Strict mode enabled
+  angular:
+    rules:
+      - OnPush change detection where possible
+      - async pipe for RxJS subscriptions in templates
+      - Lazy loading for feature modules
+  rxjs:
+    rules:
+      - Every subscribe() MUST have an unsubscribe mechanism
+      - switchMap for cancellable HTTP requests
+
+# ── L3: Quality gates ─────────────────────────────────────
+quality_gates:
+  critical:
+    - id: SEC-001
+      name: No hardcoded secrets
+      desc: No secrets, tokens, passwords, or API keys in code
+    - id: SEC-002
+      name: No hardcoded URLs
+      desc: API URLs must use environment config
+  errors:
+    - id: TS-001
+      name: No explicit any
+      desc: Avoid "any" — use specific types
+    - id: TS-002
+      name: No console.log
+      desc: Remove console.log from production code
+  warnings:
+    - id: GIT-001
+      name: Vague commit messages
+      desc: Messages must be descriptive (>10 chars)
+  info:
+    - id: TEST-001
+      name: Missing tests
+      desc: New files should have test files
+
+# ── L4: Domain (business rules) ───────────────────────────
+domain:
+  description: ''
+  business_rules: []
+
+# ── L5: Integrations ──────────────────────────────────────
+integrations: []
+
+# ── L6: Release ───────────────────────────────────────────
+release:
+  cadence: ''
+  platforms: {}
+
+metadata:
+  version: 1.0.0
+  last_updated: ''
+  changelog: []
