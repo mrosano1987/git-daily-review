@@ -71,6 +71,7 @@ class C:
     RED = "\033[91m"
     END = "\033[0m"
     BOLD = "\033[1m"
+    DIM = "\033[2m"
 
 
 def load_config() -> dict:
