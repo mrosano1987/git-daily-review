@@ -1,0 +1,3 @@
+# The optional local RAG service (rag/service.py) uses the Python standard
+# library only — no extra packages to install. It talks to Ollama over HTTP
+# for embeddings (bge-m3 by default). Nothing to pip install here.

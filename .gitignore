@@ -27,6 +27,13 @@ mcp/node_modules/
 mcp/dist/
 npm-debug.log*
 
+# ── RAG service (local vector store + ingestion dumps) ────
+# The index may hold client-confidential docs — never commit it.
+rag/.data/
+rag/*.db
+rag/docs*.json
+rag/*.local.json
+
 # ── OS / editor ───────────────────────────────────────────
 .DS_Store
 __MACOSX/

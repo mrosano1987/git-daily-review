@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Always-on launchd agent for the local RAG service.
+
+  Install (adapt the path if the project is not in ~/Progetti):
+    cp routine/com.gitdailyreview.rag.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.gitdailyreview.rag.plist
+
+  KeepAlive restarts it if it dies or after a reboot, so the RAG service is
+  up when the 16:40 ingest and 17:00 review run. Logs to /tmp/gdr-rag.*.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.gitdailyreview.rag</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>cd $HOME/Progetti/git-daily-review/rag &amp;&amp; exec python3 service.py</string>
+    </array>
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>
+    <key>StandardOutPath</key><string>/tmp/gdr-rag.out</string>
+    <key>StandardErrorPath</key><string>/tmp/gdr-rag.err</string>
+</dict>
+</plist>
