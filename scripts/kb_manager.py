@@ -19,12 +19,17 @@ Review mode walks through each pending suggestion and asks:
 import argparse
 import os
 import sys
-import yaml
 from datetime import datetime
 from pathlib import Path
 
 ROOT_DIR   = Path(__file__).parent.parent
 sys.path.insert(0, str(Path(__file__).parent))
+
+# Passa al virtualenv del progetto se questo interprete non ha PyYAML.
+from _bootstrap import ensure_deps
+ensure_deps()
+
+import yaml
 
 from kb_updater import (
     load_pending_suggestions, apply_suggestions,

@@ -13,12 +13,22 @@ TODAY="$(date +%F)"
 DIGEST_FILE="$PROJECT_DIR/reports/$TODAY/digest.md"
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"   # path assoluto se cron non lo trova
 
+# Interprete: il venv del progetto se c'è, altrimenti il python3 del PATH
+# (che sotto cron può essere quello di sistema, senza le dipendenze).
+if [ -n "${GDR_PYTHON:-}" ]; then
+  PY="$GDR_PYTHON"
+elif [ -x "$PROJECT_DIR/.venv/bin/python3" ]; then
+  PY="$PROJECT_DIR/.venv/bin/python3"
+else
+  PY="python3"
+fi
+
 mkdir -p "$LOG_DIR"
 cd "$PROJECT_DIR"
 
 # ── FASE 1: review engine ────────────────────────────────────────────────
-echo "[$(date '+%F %T')] Fase 1: engine run" >> "$LOG_DIR/routine.log"
-python3 scripts/daily_review.py >> "$LOG_DIR/routine.log" 2>&1 || {
+echo "[$(date '+%F %T')] Fase 1: engine run ($PY)" >> "$LOG_DIR/routine.log"
+"$PY" scripts/daily_review.py >> "$LOG_DIR/routine.log" 2>&1 || {
   echo "[$(date '+%F %T')] ❌ Engine fallito, salto il digest" >> "$LOG_DIR/routine.log"
   exit 1
 }
@@ -38,7 +48,7 @@ e reports/INDEX.md, poi scrivi il digest giornaliero nel formato previsto \
 dalla skill, in italiano. Elenca anche le KB suggestion pending con la tua \
 raccomandazione (non approvare nulla autonomamente). Salva il digest in \
 reports/$TODAY/digest.md" \
-  --allowedTools "Read,Grep,Glob,Write(reports/**),Bash(python3 scripts/kb_manager.py --list*),Bash(python3 scripts/kb_manager.py --stats)" \
+  --allowedTools "Read,Grep,Glob,Write(reports/**),Bash(python3 scripts/kb_manager.py --list*),Bash(python3 scripts/kb_manager.py --stats),Bash(.venv/bin/python3 scripts/kb_manager.py --list*),Bash(.venv/bin/python3 scripts/kb_manager.py --stats)" \
   --permission-mode dontAsk \
   --max-turns 25 \
   >> "$LOG_DIR/routine.log" 2>&1 || {

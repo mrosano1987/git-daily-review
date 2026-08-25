@@ -36,7 +36,22 @@ const ROOT = process.env.GDR_ROOT ?? path.resolve(__dirname, "..", "..");
 const SCRIPTS = path.join(ROOT, "scripts");
 const REPORTS = path.join(ROOT, "reports");
 const SUGGESTIONS = path.join(ROOT, "config", "kb_suggestions");
-const PYTHON = process.env.GDR_PYTHON ?? "python3";
+// Prefer the project virtualenv: the MCP server is spawned by the client, so
+// its PATH `python3` may be a system interpreter without the dependencies.
+// The Python entry points also self-heal, but resolving here keeps the venv's
+// interpreter in the error messages.
+function resolvePython(): string {
+  if (process.env.GDR_PYTHON) return process.env.GDR_PYTHON;
+  for (const venv of [".venv", "venv"]) {
+    for (const rel of [["bin", "python3"], ["Scripts", "python.exe"]]) {
+      const candidate = path.join(ROOT, venv, ...rel);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return "python3";
+}
+
+const PYTHON = resolvePython();
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ID_RE = /^[\w-]+$/;
