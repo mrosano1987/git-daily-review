@@ -21,6 +21,17 @@ Reports:
 - Read `reports/<YYYY-MM-DD>/daily-summary.md` for a day's findings
 - Read `reports/INDEX.md` for the history index and quality trend
 
+Every review run also writes, in the same day folder:
+- `dashboard.html` — a self-contained graphical dashboard (hero quality score,
+  KPI tiles, severity strip, trend/gate/author charts, filterable commit list,
+  a table view behind every chart). No CDN, no network calls: the client data
+  stays local. Open it in a browser to triage a day visually.
+- `dashboard-data.json` — the serialized model the dashboard is rendered from.
+
+Rebuild the dashboard without re-running the AI (needed after writing the
+digest, so the digest appears inside the page):
+`python3 scripts/html_report.py --date YYYY-MM-DD`
+
 Knowledge base curation:
 - List suggestions: `python3 scripts/kb_manager.py --list [--status pending]`
 - Approve one: `python3 scripts/kb_manager.py --approve <ID>`
@@ -66,3 +77,8 @@ routine), produce — in the user's language:
 Keep the digest under ~300 words. No filler, no praise padding. If the
 report for the requested date does not exist, offer to run the review
 instead of inventing content.
+
+After writing `digest.md`, always run
+`python3 scripts/html_report.py --date <YYYY-MM-DD>` so the digest is
+embedded in that day's `dashboard.html`. Report both paths (digest and
+dashboard) as the output of the routine.

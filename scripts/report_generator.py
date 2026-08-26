@@ -221,6 +221,7 @@ def generate_report(repo_reports: list, repo_reviews: list,
     lines.append(f"---")
     lines.append(f"")
     lines.append(f"_Report generato automaticamente dalla Daily Code Review Routine._")
+    lines.append(f"_Dashboard grafica: [dashboard.html](dashboard.html)_")
     lines.append(f"_Per review interattiva: `claude \"Leggi reports/{target_date}/daily-summary.md\"`_")
 
     # Salva
@@ -246,20 +247,18 @@ def _load_trend(reports_dir: str, target_date: str, days: int) -> list[dict]:
         entry = {"date": d, "commits": 0, "files": 0,
                  "insertions": 0, "deletions": 0, "quality": "n/a"}
 
-        # Cerca i JSON dei commit
-        for repo_key in ["app", "apr"]:
-            json_path = os.path.join(day_dir, f"{repo_key}-commits.json")
-            if os.path.exists(json_path):
-                try:
-                    with open(json_path, "r") as f:
-                        data = json.load(f)
-                    stats = data.get("stats", {})
-                    entry["commits"] += stats.get("total_commits", 0)
-                    entry["files"] += stats.get("total_files_changed", 0)
-                    entry["insertions"] += stats.get("total_insertions", 0)
-                    entry["deletions"] += stats.get("total_deletions", 0)
-                except (json.JSONDecodeError, KeyError):
-                    pass
+        # Cerca i JSON dei commit — un file per repo, nome derivato dal repo
+        for json_path in sorted(Path(day_dir).glob("*-commits.json")):
+            try:
+                with open(json_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                stats = data.get("stats", {})
+                entry["commits"] += stats.get("total_commits", 0)
+                entry["files"] += stats.get("total_files_changed", 0)
+                entry["insertions"] += stats.get("total_insertions", 0)
+                entry["deletions"] += stats.get("total_deletions", 0)
+            except (json.JSONDecodeError, OSError, KeyError):
+                pass
 
         # Cerca il summary per il quality score
         summary_path = os.path.join(day_dir, "daily-summary.md")
@@ -267,9 +266,10 @@ def _load_trend(reports_dir: str, target_date: str, days: int) -> list[dict]:
             try:
                 with open(summary_path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()
-                # Cerca quality scores nel report
+                # Solo i punteggi per-commit (" — N/10 <label>"), altrimenti
+                # si pescano anche gli N/10 della tabella di trend del report.
                 import re
-                scores = re.findall(r"(\d+)/10", content)
+                scores = re.findall(r"—\s*(\d+)/10\s", content)
                 if scores:
                     avg = sum(int(s) for s in scores) / len(scores)
                     entry["quality"] = f"{avg:.1f}/10"
@@ -322,7 +322,9 @@ def generate_history_index(reports_dir: str) -> str:
                     if "Commit totali" in line:
                         commit_info = line.strip().split("|")[-2].strip() if "|" in line else ""
                         break
-                lines.append(f"- [{d.name}]({d.name}/daily-summary.md) — {commit_info}")
+                dash = f" · [dashboard]({d.name}/dashboard.html)" \
+                    if (d / "dashboard.html").exists() else ""
+                lines.append(f"- [{d.name}]({d.name}/daily-summary.md) — {commit_info}{dash}")
             else:
                 lines.append(f"- {d.name} — _report non disponibile_")
 

@@ -56,6 +56,13 @@ reports/$TODAY/digest.md" \
   exit 0
 }
 
+# ── FASE 3: ri-genera la dashboard includendo il digest ──────────────────
+# Deterministico e fuori dall'agente: nessuna analisi AI, solo re-render di
+# dashboard.html da dashboard-data.json + digest.md.
+"$PY" scripts/html_report.py --date "$TODAY" >> "$LOG_DIR/routine.log" 2>&1 || {
+  echo "[$(date '+%F %T')] ⚠️ Dashboard non rigenerata (digest ok)" >> "$LOG_DIR/routine.log"
+}
+
 echo "[$(date '+%F %T')] ✅ Routine completata: $DIGEST_FILE" >> "$LOG_DIR/routine.log"
 
 # ── Opzionale: notifica ──────────────────────────────────────────────────

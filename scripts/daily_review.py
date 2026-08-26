@@ -38,6 +38,7 @@ import yaml
 from git_collector import collect_repo, save_report_json
 from ai_reviewer import review_commits
 from report_generator import generate_report, generate_history_index
+from html_report import generate_html_report
 from kb_updater import extract_learnings, save_suggestions, apply_suggestions, format_suggestions_for_report
 
 
@@ -285,6 +286,19 @@ def run_review(target_date: str, config: dict, collect_only: bool = False):
         kb_section=kb_section,
     )
     print(f"  {C.GREEN}✓{C.END} Report salvato: {report_path}")
+
+    # Dashboard HTML (pagina autonoma, nessuna richiesta di rete)
+    try:
+        dashboard_path = generate_html_report(
+            repo_reports, repo_reviews,
+            target_date, reports_dir, trend_days,
+            kb_section=kb_section,
+        )
+        print(f"  {C.GREEN}✓{C.END} Dashboard: {dashboard_path}")
+    except Exception as e:
+        # Il Markdown è già salvato: una dashboard non generata non deve
+        # far fallire la review.
+        print(f"  {C.YELLOW}⚠{C.END} Dashboard HTML non generata: {e}")
 
     # Aggiorna indice
     index_path = generate_history_index(reports_dir)
