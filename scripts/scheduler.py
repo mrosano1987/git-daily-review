@@ -18,8 +18,15 @@ import os
 import platform
 import subprocess
 import sys
-import yaml
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+
+# Passa al virtualenv del progetto se questo interprete non ha PyYAML.
+from _bootstrap import ensure_deps
+ensure_deps()
+
+import yaml
 
 ROOT_DIR = Path(__file__).parent.parent
 CONFIG_PATH = ROOT_DIR / "config" / "config.yaml"

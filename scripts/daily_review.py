@@ -21,7 +21,6 @@ import argparse
 import os
 import subprocess
 import sys
-import yaml
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -29,6 +28,12 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).parent
 ROOT_DIR = SCRIPT_DIR.parent
 sys.path.insert(0, str(SCRIPT_DIR))
+
+# Passa al virtualenv del progetto se questo interprete non ha PyYAML.
+from _bootstrap import ensure_deps
+ensure_deps()
+
+import yaml
 
 from git_collector import collect_repo, save_report_json
 from ai_reviewer import review_commits

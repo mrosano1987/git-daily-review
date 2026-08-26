@@ -27,6 +27,10 @@ License: **AGPL-3.0-only** · Python 3.10+ core · TypeScript MCP server
 git clone https://github.com/YOUR_USER/git-daily-review.git
 cd git-daily-review
 
+# 0. Dependencies in a virtualenv (setup.py does this for you if you skip it)
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+
 # 1. Configure (opens the wizard in your browser)
 python3 setup.py
 
@@ -55,6 +59,11 @@ python3 scripts/kb_manager.py --approve <ID>       # non-interactive approve
 python3 scripts/kb_manager.py --reject  <ID>       # non-interactive reject
 python3 scripts/kb_manager.py --stats
 ```
+
+The `python3` above can be any interpreter: if it lacks the dependencies, the
+entry points re-exec themselves under the project `.venv` (or `$GDR_PYTHON`),
+and tell you how to create it if there isn't one. This matters for cron and
+launchd, where `python3` is often the bare system Python.
 
 ---
 
@@ -100,7 +109,7 @@ Exposed tools:
 
 Then just ask your agent things like *“run today's review and summarize the critical issues”* or *“show me pending KB suggestions and approve the ones about naming conventions”*.
 
-Environment overrides: `GDR_ROOT` (project root, default: repo root), `GDR_PYTHON` (Python executable, default: `python3`).
+Environment overrides: `GDR_ROOT` (project root, default: repo root), `GDR_PYTHON` (Python executable; default: the project `.venv` if present, otherwise `python3`).
 
 ---
 

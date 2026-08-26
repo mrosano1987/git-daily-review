@@ -10,9 +10,17 @@ digest intelligente ogni giorno alle 17:00) interamente sulla tua macchina.
 Architettura della routine:
 
     17:00  launchd/cron → daily-routine.sh
-           ├── FASE 1  python3 scripts/daily_review.py   (motore, Ollama, gratis)
+           ├── FASE 1  .venv/bin/python3 scripts/daily_review.py  (Ollama, gratis)
            └── FASE 2  claude -p + skill daily-review    (digest, sola lettura)
                         → reports/<oggi>/digest.md
+
+Interprete Python: lo script usa `$GDR_PYTHON` se impostato, altrimenti il
+`.venv` del progetto, altrimenti il `python3` del PATH. Crealo una volta con
+`python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`. Serve
+perché sotto cron/launchd il `python3` del PATH è spesso quello di sistema,
+senza `pyyaml`; e un aggiornamento di Homebrew può azzerare i site-packages
+di quello che avevi. Gli entry point Python sanno comunque rientrare nel
+`.venv` da soli, quindi anche un `python3 scripts/...` a mano funziona.
 
 ## 1. Installare la skill (una volta)
 
