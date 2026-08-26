@@ -15,6 +15,7 @@ License: **AGPL-3.0-only** · Python 3.10+ core · TypeScript MCP server
 - **MCP server** — expose reviews, reports, and knowledge-base curation as agent tools
 - **Multi-provider AI** — Anthropic Claude, OpenAI, Google Gemini, or any local model via Ollama (fully offline)
 - **Self-improving knowledge base** — 7-layer project context that learns from each review, with a code-enforced auto-merge policy and human approval for high-impact changes
+- **Markdown + HTML output** — every run writes `daily-summary.md` and a self-contained `dashboard.html` (quality trend, gate and per-author charts, filterable commit list, a table view behind every chart). No CDN, no network calls: your code review data never leaves the machine
 - **RAG-ready** — optional integration with an external RAG service for semantic context
 - **Cross-platform scheduling** — macOS (launchd), Linux (cron), Windows (Task Scheduler); secrets stay in `.env`, never in the scheduler files
 - **Setup wizard** — web-based configuration, no manual YAML editing required
@@ -160,6 +161,7 @@ git-daily-review/
 │   ├── kb_manager.py           ← KB curation CLI (interactive + --approve/--reject)
 │   ├── rag_client.py           ← optional RAG client
 │   ├── report_generator.py     ← Markdown reports + history index
+│   ├── html_report.py          ← self-contained HTML dashboard (charts, filters)
 │   ├── scheduler.py            ← launchd / cron / schtasks (no secrets on disk)
 │   └── wizard_app.py           ← wizard HTTP backend
 ├── mcp/                        ← MCP server (TypeScript)
