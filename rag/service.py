@@ -86,7 +86,7 @@ def _retrieve(body: dict) -> dict:
 
     contexts = [
         {"source": h.title or h.source, "score": round(h.score, 4),
-         "content": h.content}
+         "source_id": h.source, "url": h.url, "content": h.content}
         for h in hits
     ]
     dependencies = list(dict.fromkeys(
