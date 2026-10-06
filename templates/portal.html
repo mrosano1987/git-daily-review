@@ -17,7 +17,8 @@
   --q100: #cde2fb; --q200: #9ec5f4; --q300: #6da7ec; --q400: #3987e5; --q500: #256abf; --q600: #184f95; --q700: #0d366b;
   --status-good: #0ca30c; --status-warning: #fab219; --status-serious: #ec835a; --status-critical: #d03b3b;
   --delta-up: #006300; --delta-down: #b42828;
-  --accent: #2a78d6;
+  --accent: #2a78d6; --accent-soft: rgba(42,120,214,0.10); --accent-strong: #184f95;
+  --shadow-card: 0 1px 2px rgba(0,0,0,.06); --shadow-float: 0 2px 6px rgba(0,0,0,.16);
 }
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme="light"])) {
@@ -29,7 +30,8 @@
     --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
     --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
     --q100: #0d366b; --q200: #104281; --q300: #184f95; --q400: #1c5cab; --q500: #2a78d6; --q600: #5598e7; --q700: #9ec5f4;
-    --delta-up: #0ca30c; --delta-down: #e66767; --accent: #3987e5;
+    --delta-up: #0ca30c; --delta-down: #e66767; --accent: #3987e5; --accent-soft: rgba(57,135,229,0.16); --accent-strong: #5598e7;
+    --shadow-card: 0 1px 2px rgba(0,0,0,.4); --shadow-float: 0 2px 8px rgba(0,0,0,.5);
   }
 }
 :root[data-theme="dark"] {
@@ -41,7 +43,8 @@
   --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
   --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
   --q100: #0d366b; --q200: #104281; --q300: #184f95; --q400: #1c5cab; --q500: #2a78d6; --q600: #5598e7; --q700: #9ec5f4;
-  --delta-up: #0ca30c; --delta-down: #e66767; --accent: #3987e5;
+  --delta-up: #0ca30c; --delta-down: #e66767; --accent: #3987e5; --accent-soft: rgba(57,135,229,0.16); --accent-strong: #5598e7;
+  --shadow-card: 0 1px 2px rgba(0,0,0,.4); --shadow-float: 0 2px 8px rgba(0,0,0,.5);
 }
 
 * { box-sizing: border-box; }
@@ -237,6 +240,157 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
 .chk { display: inline-flex; align-items: center; gap: 5px; margin-right: 12px; font-size: 13px; cursor: pointer; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
 .sr { position: absolute; left: -9999px; }
+
+/* ═══ Skin SLDS: raggi 4px, bordi hairline, ombre leggere, brand pieno sulle azioni primarie ═══ */
+:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--accent), 0 0 3px var(--accent); }
+#side a.nav { border-radius: 4px; padding: 6px 10px; }
+#side a.nav.active { background: var(--accent-soft); font-weight: 700; }
+#top { background: var(--surface-1); backdrop-filter: none; }
+#top .title { font-weight: 700; }
+h1 { font-size: 20px; font-weight: 700; line-height: 1.25; }
+h3 { font-size: 14px; font-weight: 700; margin: 20px 0 10px; }
+.ctl { border-radius: 4px; border-color: var(--axis); min-height: 32px; padding: 4px 10px; }
+.btn { border-radius: 4px; border-color: var(--axis); min-height: 32px; padding: 4px 14px; font-size: 13px; color: var(--accent); font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+.btn.ghost { color: var(--text-secondary); font-weight: 400; }
+.btn.sm { min-height: 24px; padding: 1px 8px; font-size: 12px; }
+.btn.danger { color: var(--status-critical); }
+.seg { border-radius: 4px; border-color: var(--axis); }
+.seg button { min-height: 30px; padding: 4px 12px; font-size: 13px; }
+.seg button + button { border-left-color: var(--axis); }
+.seg button.on { background: var(--accent); color: #fff; font-weight: 600; }
+.seg button.on::before { content: none; }
+.card { border-radius: 4px; border-color: var(--grid); box-shadow: var(--shadow-card); padding: 12px 16px 16px; }
+.card-h .t { font-weight: 700; font-size: 13px; }
+.kpi .v { font-weight: 300; }
+.kpi .l { font-weight: 700; color: var(--text-primary); }
+table.t th { text-transform: uppercase; letter-spacing: .04em; font-size: 11px; font-weight: 700; color: var(--text-secondary); background: var(--surface-2); }
+.pill { border-radius: 15px; }
+.tabs { gap: 2px; }
+.tabs button { border-bottom-width: 3px; font-size: 13px; }
+.tabs button.on { font-weight: 700; }
+#tip { border-radius: 4px; box-shadow: var(--shadow-float); }
+#drawer { box-shadow: -2px 0 12px rgba(0,0,0,.18); }
+.finding { border: 1px solid var(--grid); border-left: 1px solid var(--grid); border-radius: 4px; background: var(--surface-1); padding: 8px 12px; }
+.finding .fx { color: var(--text-secondary); font-size: 12px; margin-top: 2px; }
+.diff { border-radius: 4px; }
+.banner { border-radius: 4px; }
+
+/* Sidebar: dashboard predefinita vs personali */
+.dash-tree { margin: 2px 0 6px 18px; padding-left: 8px; border-left: 1px solid var(--grid); display: flex; flex-direction: column; gap: 1px; }
+.dash-tree .sub { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--text-muted); padding: 6px 8px 2px; }
+.dash-tree .sub a { color: var(--accent); font-size: 15px; line-height: 1; text-decoration: none; padding: 0 2px; }
+#side .dash-tree a.nav.dash-link { padding: 4px 8px; font-size: 13px; gap: 6px; }
+.dash-link .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dot-tile { flex: none; width: 11px; height: 11px; border-radius: 3px; background: var(--c); }
+.lock { flex: none; color: var(--text-muted); }
+
+/* Header dashboard */
+.dh { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.dh .tile { width: 32px; height: 32px; border-radius: 4px; display: grid; place-items: center; flex: none; }
+.dh .tile.sys { background: var(--surface-2); border: 1px solid var(--grid); color: var(--text-secondary); }
+.dh .tile.usr { background: var(--c); color: #fff; font-weight: 700; }
+.dh .kind { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .05em; }
+.dh h1 { margin: 0; }
+.dh .meta { font-size: 12px; color: var(--text-muted); }
+.dh .acts { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.badge { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 15px; font-size: 11px; font-weight: 700; background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--grid); text-transform: uppercase; letter-spacing: .04em; }
+.hint { font-size: 12px; color: var(--text-secondary); }
+
+/* Barra Oggi */
+.today { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; padding: 10px 16px; margin-bottom: 16px; border-radius: 4px; background: var(--surface-1); border: 1px solid var(--grid); font-size: 13px; }
+.today a { color: var(--text-primary); text-decoration: none; display: inline-flex; gap: 6px; align-items: center; }
+.today a:hover .lnk { text-decoration: underline; }
+.today .lnk { color: var(--accent); }
+.today .q { margin-left: auto; color: var(--text-secondary); }
+.today .q strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+/* Modifica dashboard */
+.editing .card { outline: 0; border: 1px dashed var(--axis); }
+.editing .card.over { border-color: var(--accent); }
+.editing .card.over::before { content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--accent); }
+.editing .card.dragging { opacity: .4; }
+.editing .card.resizing { border: 1px solid var(--accent); }
+.drag { cursor: grab; color: var(--text-muted); font-size: 14px; line-height: 20px; padding: 0 2px; user-select: none; }
+.rz { position: absolute; top: 0; right: -9px; bottom: 0; width: 14px; cursor: ew-resize; display: flex; align-items: center; justify-content: center; z-index: 2; }
+.rz::after { content: ""; width: 4px; height: 32px; border-radius: 2px; background: var(--axis); }
+.rz:hover::after, .resizing .rz::after { background: var(--accent); }
+.wchips { position: absolute; left: 50%; bottom: -11px; transform: translateX(-50%); display: flex; background: var(--surface-1); border: 1px solid var(--grid); border-radius: 4px; overflow: hidden; box-shadow: var(--shadow-float); z-index: 2; }
+.wchips button { border: 0; background: transparent; padding: 1px 8px; font-size: 11px; cursor: pointer; color: var(--text-secondary); }
+.wchips button.on { background: var(--accent); color: #fff; }
+.editing .grid, .grid.editing { row-gap: 24px; }
+.add-tile { grid-column: span 3; min-height: 120px; border: 1px dashed var(--axis); border-radius: 4px; background: transparent; color: var(--accent); font-size: 13px; cursor: pointer; }
+.add-tile:hover { background: var(--accent-soft); border-color: var(--accent); }
+.edit-bar .btn.sm { border-color: var(--grid); width: 24px; padding: 0; justify-content: center; color: var(--text-secondary); }
+
+/* Stato vuoto */
+.emptyd { grid-column: span 12; border: 1px dashed var(--axis); border-radius: 8px; padding: 40px 24px; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; background: var(--surface-1); }
+.emptyd .ghost { display: grid; grid-template-columns: repeat(12, 10px); gap: 3px; opacity: .7; }
+.emptyd .ghost span { height: 18px; border-radius: 2px; background: var(--surface-2); border: 1px solid var(--grid); }
+.emptyd .ghost span.hl { background: var(--accent-soft); border: 1px dashed var(--accent); }
+.emptyd .ttl { font-size: 16px; font-weight: 700; }
+.emptyd .sub { font-size: 13px; color: var(--text-secondary); max-width: 460px; }
+.tpls { display: grid; grid-template-columns: repeat(3, minmax(0, 220px)); gap: 12px; }
+.tpl { text-align: left; padding: 14px; border: 1px solid var(--grid); border-radius: 4px; background: var(--surface-1); cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
+.tpl:hover { border-color: var(--accent); background: var(--accent-soft); }
+.tpl b { font-size: 13px; } .tpl span { font-size: 12px; color: var(--text-secondary); } .tpl small { font-size: 11px; color: var(--text-muted); }
+
+/* Generatore widget */
+dialog#wdlg { padding: 0; width: min(1120px, 96vw); max-height: 92vh; border-radius: 8px; border-color: var(--grid); box-shadow: 0 2px 12px rgba(0,0,0,.25); overflow: hidden; }
+dialog#wdlg form { display: flex; flex-direction: column; max-height: 92vh; }
+.wb-h { padding: 14px 24px; border-bottom: 1px solid var(--grid); display: flex; align-items: center; }
+.wb-h h3 { margin: 0; font-size: 18px; flex: 1; }
+.wb { display: grid; grid-template-columns: minmax(0, 440px) minmax(0, 1fr); min-height: 0; flex: 1; overflow: hidden; }
+.wb-form { padding: 16px 24px 20px; overflow: auto; display: flex; flex-direction: column; gap: 14px; }
+.wb-form .lbl2 { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; display: block; }
+.wb-form .ctl { width: 100%; }
+.wb-2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; }
+.types { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.types button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px 6px; border: 1px solid var(--grid); border-radius: 4px; background: var(--surface-1); font-size: 11px; cursor: pointer; line-height: 1.2; color: var(--text-secondary); }
+.types button:hover { border-color: var(--accent); }
+.types button.on { border: 2px solid var(--accent); background: var(--accent-soft); color: var(--text-primary); padding: 7px 3px 5px; }
+.widths { display: flex; gap: 6px; }
+.widths button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 8px; border: 1px solid var(--grid); border-radius: 4px; background: var(--surface-1); font-size: 12px; cursor: pointer; }
+.widths button.on { border: 2px solid var(--accent); background: var(--accent-soft); padding: 5px 7px; }
+.widths .bar { display: grid; grid-template-columns: repeat(12, 3px); gap: 1px; }
+.widths .bar i { height: 10px; border-radius: 2px; background: var(--accent); }
+.wb-form details { border: 1px solid var(--grid); border-radius: 4px; padding: 0 12px; }
+.wb-form summary { cursor: pointer; padding: 8px 0; font-size: 13px; font-weight: 700; }
+.wb-form summary span { font-weight: 400; color: var(--text-secondary); }
+.wb-prev { background: var(--plane); border-left: 1px solid var(--grid); padding: 16px 20px; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.wb-prev .pg { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; }
+.wb-prev .ghostc { border: 1px dashed var(--axis); border-radius: 4px; min-height: 60px; }
+.wb-f { padding: 12px 24px; border-top: 1px solid var(--grid); display: flex; justify-content: flex-end; gap: 8px; background: var(--surface-2); }
+@media (max-width: 900px) { .wb { grid-template-columns: 1fr; } .wb-prev { border-left: 0; border-top: 1px solid var(--grid); } }
+
+/* Report: card giorno */
+.days { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.day { border-radius: 4px; border-color: var(--grid); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: var(--shadow-card); }
+.day:hover { background: var(--surface-1); border-color: var(--accent); }
+.day.fail { border-style: dashed; border-color: var(--axis); box-shadow: none; }
+.day .top { display: flex; align-items: baseline; gap: 8px; }
+.day .wd { font-size: 12px; color: var(--text-secondary); width: 28px; }
+.day .dd { font-size: 20px; font-weight: 300; font-variant-numeric: tabular-nums; }
+.day .n { margin-left: auto; font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.day .qr { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+.day .qr strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.day .qr .trk { flex: 1; height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+.day .qr .trk i { display: block; height: 100%; background: var(--s1); border-radius: 2px; }
+.day .flag { font-size: 12px; background: var(--surface-2); border-radius: 2px; padding: 2px 6px; align-self: flex-start; }
+.sevs { display: flex; gap: 10px; flex-wrap: wrap; }
+.month-h { margin: 22px 0 10px; font-size: 14px; } .month-h span { font-weight: 400; color: var(--text-muted); font-size: 12px; }
+
+/* Git-flow: tipi di branch come chip attivabili */
+.chk { position: relative; margin-right: 4px; }
+.chk input[data-fam] { position: absolute; opacity: 0; pointer-events: none; }
+.chk:has(input[data-fam]) .pill { border: 1px solid var(--axis); background: var(--surface-1); color: var(--text-primary); padding: 2px 10px; }
+.chk:has(input[data-fam]:not(:checked)) .pill { opacity: .45; border-color: var(--grid); }
+.chk:has(input[data-fam]:focus-visible) .pill { box-shadow: 0 0 0 1px var(--accent), 0 0 3px var(--accent); }
+
+/* Stato suggestion KB */
+.st-dot { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.st-dot::before { content: ""; width: 10px; height: 10px; border-radius: 50%; box-sizing: border-box; border: 2px solid var(--c); background: var(--f, transparent); }
 </style>
 </head>
 <body>
@@ -245,10 +399,10 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
   <div class="brand-sub">Portale locale · dati riservati</div>
   <div class="nav-group">Analisi</div>
   <a class="nav" data-r="dashboard" href="#/dashboard/default"><span class="ico">▦</span>Dashboard</a>
-  <div id="dash-links"></div>
-  <a class="nav" data-r="reports" href="#/reports"><span class="ico">🗓</span>Report giornalieri</a>
+  <div id="dash-links" class="dash-tree"></div>
+  <a class="nav" data-r="reports" href="#/reports"><span class="ico">◷</span>Report giornalieri</a>
   <a class="nav" data-r="commits" href="#/commits"><span class="ico">≡</span>Storico commit</a>
-  <a class="nav" data-r="authors" href="#/authors"><span class="ico">👤</span>Autori</a>
+  <a class="nav" data-r="authors" href="#/authors"><span class="ico">◉</span>Autori</a>
   <div class="nav-group">Repository</div>
   <a class="nav" data-r="gitflow" href="#/gitflow"><span class="ico">⑂</span>Git-flow</a>
   <a class="nav" data-r="releases" href="#/releases"><span class="ico">⚑</span>Rilasci</a>
@@ -265,7 +419,7 @@ dialog::backdrop { background: rgba(0,0,0,.35); }
     <select class="ctl" id="f-repo" aria-label="Repository"></select>
     <select class="ctl" id="f-author" aria-label="Autore"></select>
   </div>
-  <button class="btn ghost" id="theme-btn" title="Tema chiaro/scuro">◐</button>
+  <button class="btn ghost" id="theme-btn" title="Tema chiaro/scuro" aria-label="Tema chiaro/scuro">◐</button>
 </header>
 
 <main id="main"><div class="empty">Caricamento…</div></main>
@@ -793,114 +947,246 @@ const TEMPLATES = {
   ] },
 };
 
+const LOCK = '<svg class="lock" width="11" height="12" viewBox="0 0 11 12" aria-hidden="true"><rect x="1" y="5" width="9" height="6.5" rx="1.5" fill="currentColor"/><path d="M3 5V3.5a2.5 2.5 0 0 1 5 0V5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
+const WIDTHS = [[3, "¼"], [4, "⅓"], [6, "½"], [8, "⅔"], [12, "Intera"]];
+const dashColor = d => SERIES[(S.dashboards.indexOf(d) + 1) % 8];
+const NEW_SEL = '<select class="ctl" id="d-new" aria-label="Nuova dashboard"><option value="">Nuova dashboard…</option><option value="blank">Vuota</option><option value="mentoring">Da modello: Mentoring autori</option><option value="release">Da modello: Rilasci e stabilità</option></select>';
+
 function currentDash(id) { return id === "default" ? DEFAULT_DASH : S.dashboards.find(d => d.id === id); }
 function renderDashLinks(active) {
-  $("#dash-links").innerHTML = S.dashboards.map(d => `<a class="nav dash-link ${active === d.id ? "active" : ""}" href="#/dashboard/${d.id}">${esc(d.name)}</a>`).join("");
+  const usr = S.dashboards.map(d => '<a class="nav dash-link ' + (active === d.id ? "active" : "") + '" href="#/dashboard/' + d.id + '"><span class="dot-tile" style="--c:' + dashColor(d) + '"></span><span class="nm">' + esc(d.name) + '</span></a>').join("");
+  $("#dash-links").innerHTML = '<div class="sub">Predefinita</div>' +
+    '<a class="nav dash-link ' + (active === "default" ? "active" : "") + '" href="#/dashboard/default">' + LOCK + '<span class="nm">' + esc(DEFAULT_DASH.name) + '</span></a>' +
+    '<div class="sub"><span>Le mie dashboard</span><a href="#" id="side-new" title="Nuova dashboard" aria-label="Nuova dashboard">+</a></div>' +
+    (usr || '<div class="hint" style="padding:2px 8px">Nessuna, per ora.</div>');
+  $("#side-new").onclick = e => { e.preventDefault(); createDash(TEMPLATES.blank); };
 }
 async function persistDashboards() {
   await api("/api/dashboards", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dashboards: S.dashboards }) });
 }
 
+/** Barra «Oggi» della panoramica: critical, completezza dati, andamento quality. */
+function todayStrip() {
+  const [from, to] = rangeBounds(), cs = applyFilters(S.commits);
+  const crit = cs.flatMap(c => c.findings.filter(f => f.severity === "critical").map(f => ({ ...f, _c: c })));
+  const err = cs.reduce((n, c) => n + c.findings.filter(f => f.severity === "error").length, 0);
+  const bad = S.days.filter(d => !d.fetch_ok && d.date >= from && d.date <= to);
+  const unrev = cs.filter(c => !c.reviewed).length;
+  const last = lastDay();
+  const q = (x, y) => avg(S.commits.filter(c => c.day >= x && c.day <= y && c.quality != null && (!S.f.repo || c.repo === S.f.repo) && (!S.f.author || c.author === S.f.author)).map(c => c.quality));
+  const qb = q(addDays(last, -29), last), qa = q(addDays(last, -59), addDays(last, -30)), qd = qb != null && qa != null ? qb - qa : null;
+  const p = ["<strong>Oggi</strong>"];
+  p.push(crit.length
+    ? '<a role="button" tabindex="0" style="cursor:pointer" data-cid="' + esc(crit[0]._c.id) + '"><span style="color:var(--status-critical)">⛔</span><span><strong>' + crit.length + '</strong> finding critical da discutere</span><span class="lnk">' + esc(crit[0].rule_id) + ' · ' + esc(crit[0]._c.author) + ' · ' + dm(crit[0]._c.day) + '</span></a>'
+    : '<span><span style="color:var(--status-good)">✓</span> Nessun finding critical</span>');
+  if (err) p.push('<span><span style="color:var(--status-serious)">✖</span> ' + err + ' error</span>');
+  p.push(bad.length
+    ? '<a href="#/reports"><span>⚠</span><span>Raccolta git fallita il ' + bad.map(d => dm(d.date)).join(", ") + '</span><span class="lnk">— dati incompleti</span></a>'
+    : '<span><span style="color:var(--status-good)">✓</span> Dati completi</span>');
+  if (unrev) p.push('<span class="muted">' + unrev + ' commit non revisionati</span>');
+  if (qb != null) p.push('<span class="q">Quality 30 gg <strong>' + fmtN(qb, 1) + '</strong>' + (qd != null ? ' <span style="color:' + (qd >= 0 ? "var(--delta-up)" : "var(--delta-down)") + ';font-weight:700">' + (qd >= 0 ? "▲ +" : "▼ ") + fmtN(qd, 1) + '</span> vs 30 gg prec.' : "") + '</span>');
+  return '<div class="today">' + p.join("") + '</div>';
+}
+
+function emptyDashHTML() {
+  const tpl = (k, n, desc, count) => '<button type="button" class="tpl" data-tpl="' + k + '"><b>' + n + '</b><span>' + desc + '</span><small>' + count + '</small></button>';
+  return '<div class="emptyd"><div class="ghost"><span style="grid-column:span 3"></span><span style="grid-column:span 3"></span><span class="hl" style="grid-column:span 6"></span><span style="grid-column:span 6;height:30px"></span><span style="grid-column:span 6;height:30px"></span></div>' +
+    '<div><div class="ttl">Questa dashboard è vuota</div><div class="sub">Parti da un modello o aggiungi il primo widget. I widget usano i filtri globali in alto più i filtri propri.</div></div>' +
+    '<div class="tpls">' + tpl("mentoring", "Mentoring autori", "Commit, finding e gate ricorrenti per autore.", TEMPLATES.mentoring.widgets.length + " widget") +
+    tpl("release", "Rilasci e stabilità", "Release, hotfix e volume di codice per repository.", TEMPLATES.release.widgets.length + " widget") +
+    tpl("blank", "Vuota", "Parti da zero con il generatore di widget.", "Apre il generatore") + '</div>' +
+    '<button class="btn primary" id="e-add">+ Aggiungi widget</button></div>';
+}
+
 function viewDashboard(id) {
-  const d = currentDash(id) || DEFAULT_DASH;
+  const d = currentDash(id) || DEFAULT_DASH, ed = S.editing && !d.builtin;
   setTitle(d.name);
   renderDashLinks(d.id);
+  const tile = d.builtin ? '<span class="tile sys">' + LOCK.replace('width="11" height="12"', 'width="13" height="14"') + '</span>'
+    : '<span class="tile usr" style="--c:' + dashColor(d) + '">' + esc(d.name.trim().slice(0, 1).toUpperCase()) + '</span>';
+  const acts = d.builtin
+    ? '<button class="btn primary" id="d-dup">Duplica e modifica</button>' + NEW_SEL + '<button class="btn" id="d-export" title="Esporta definizione JSON">Esporta</button>'
+    : ed ? '<span class="hint">Trascina ⠿ per spostare · trascina il bordo destro per ridimensionare</span><button class="btn" id="d-add">+ Widget</button><button class="btn" id="d-rename">Rinomina</button><button class="btn danger" id="d-del">Elimina</button><button class="btn primary" id="d-edit">Fine</button>'
+    : '<button class="btn" id="d-edit">Modifica</button><button class="btn" id="d-dup">Duplica</button>' + NEW_SEL + '<button class="btn" id="d-export" title="Esporta definizione JSON">Esporta</button>';
   const main = $("#main");
-  main.innerHTML = `
-    <div class="toolbar">
-      <div><h1>${esc(d.name)}</h1><p class="lede" style="margin:0">${d.builtin ? "Dashboard di default: per modificarla creane una copia." : "Dashboard personalizzata."} Filtri globali in alto; ogni widget può avere filtri propri.</p></div>
-      <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
-        ${d.builtin ? "" : `<button class="btn ${S.editing ? "primary" : ""}" id="d-edit">${S.editing ? "✓ Fine modifica" : "✎ Modifica"}</button>`}
-        ${S.editing && !d.builtin ? `<button class="btn" id="d-add">＋ Widget</button><button class="btn" id="d-rename">Rinomina</button><button class="btn danger" id="d-del">Elimina</button>` : ""}
-        <button class="btn" id="d-dup">⧉ Duplica</button>
-        <select class="ctl" id="d-new" aria-label="Nuova dashboard"><option value="">＋ Nuova dashboard…</option><option value="blank">Vuota</option><option value="mentoring">Da modello: Mentoring autori</option><option value="release">Da modello: Rilasci e stabilità</option></select>
-        <button class="btn" id="d-export" title="Esporta definizione JSON">⇩ Esporta</button>
-      </div>
-    </div>
-    ${coverageBanner()}
-    <div class="grid ${S.editing && !d.builtin ? "editing" : ""}" id="wgrid"></div>`;
+  main.innerHTML = '<div class="dh">' + tile + '<div><div class="kind">' + (d.builtin ? "Dashboard predefinita" : "La mia dashboard") + '</div><h1>' + esc(d.name) + '</h1></div>' +
+    (d.builtin ? '<span class="badge">Sola lettura</span><span class="meta">Aggiornata con il portale · duplicala per personalizzarla</span>' : '<span class="meta">' + d.widgets.length + ' widget</span>') +
+    '<div class="acts">' + acts + '</div></div>' +
+    (d.builtin ? todayStrip() : coverageBanner()) +
+    '<div class="grid ' + (ed ? "editing" : "") + '" id="wgrid"></div>';
   const grid = $("#wgrid");
-  if (!d.widgets.length) grid.innerHTML = `<div class="card w12 empty">Dashboard vuota. Usa «Modifica» → «＋ Widget».</div>`;
+  if (!d.widgets.length) grid.innerHTML = emptyDashHTML();
   d.widgets.forEach((w, i) => {
     const card = document.createElement("section");
-    card.className = `card w${w.w || 6}`; card.dataset.wid = w.id;
-    card.innerHTML = `<div class="card-h"><div><div class="t">${esc(w.title || WTYPES[w.type])}</div><div class="st">${esc(widgetSubtitle(w))}</div></div>
-      <div class="tools">${["line", "column", "stacked", "hbar", "heatmap"].includes(w.type) ? `<button class="btn ghost sm" data-act="table" title="Vista tabella">▤</button>` : ""}
-      ${S.editing && !d.builtin ? `<span class="edit-bar"><button class="btn ghost sm" data-act="up" title="Sposta prima">↑</button><button class="btn ghost sm" data-act="down" title="Sposta dopo">↓</button><button class="btn ghost sm" data-act="edit" title="Configura">⚙</button><button class="btn ghost sm danger" data-act="rm" title="Rimuovi">✕</button></span>` : ""}</div></div>
-      <div class="chart"></div>`;
+    card.className = "card w" + (w.w || 6); card.dataset.wid = w.id;
+    const hasTbl = ["line", "column", "stacked", "hbar", "heatmap"].includes(w.type);
+    card.innerHTML = '<div class="card-h">' + (ed ? '<span class="drag" draggable="true" title="Trascina per spostare" aria-label="Trascina per spostare">⠿</span>' : "") +
+      '<div style="flex:1;min-width:0"><div class="t">' + esc(w.title || autoTitle(w)) + '</div><div class="st">' + esc(widgetSubtitle(w)) + '</div></div>' +
+      '<div class="tools">' + (hasTbl ? '<button class="btn ghost sm" data-act="table" title="Vista tabella" aria-pressed="false">Tabella</button>' : "") +
+      (ed ? '<span class="edit-bar"><button class="btn sm" data-act="up" title="Sposta prima" aria-label="Sposta prima">↑</button><button class="btn sm" data-act="down" title="Sposta dopo" aria-label="Sposta dopo">↓</button><button class="btn sm" data-act="edit" title="Configura" aria-label="Configura">⚙</button><button class="btn sm danger" data-act="rm" title="Rimuovi" aria-label="Rimuovi">✕</button></span>' : "") +
+      '</div></div><div class="chart"></div>' +
+      (ed ? '<div class="rz" title="Trascina per ridimensionare"></div><div class="wchips">' + WIDTHS.map(([v, l]) => '<button type="button" data-w="' + v + '" class="' + (v === (w.w || 6) ? "on" : "") + '" title="' + v + ' colonne su 12">' + (v === 12 ? "1/1" : l) + '</button>').join("") + '</div>' : "");
     grid.appendChild(card);
     card.addEventListener("click", async e => {
-      const act = e.target.closest("[data-act]")?.dataset.act;
+      const wv = e.target.closest("[data-w]")?.dataset.w;
+      if (wv) { w.w = +wv; await persistDashboards(); return viewDashboard(d.id); }
+      const btn = e.target.closest("[data-act]"), act = btn?.dataset.act;
       if (!act) return;
-      if (act === "table") { card.dataset.table = card.dataset.table === "1" ? "0" : "1"; return renderWidget(w, card); }
+      if (act === "table") { const on = card.dataset.table !== "1"; card.dataset.table = on ? "1" : "0"; btn.textContent = on ? "Grafico" : "Tabella"; btn.setAttribute("aria-pressed", on); return renderWidget(w, card); }
       if (act === "rm") d.widgets.splice(i, 1);
       if (act === "up" && i > 0) [d.widgets[i - 1], d.widgets[i]] = [d.widgets[i], d.widgets[i - 1]];
       if (act === "down" && i < d.widgets.length - 1) [d.widgets[i + 1], d.widgets[i]] = [d.widgets[i], d.widgets[i + 1]];
       if (act === "edit") return openWidgetDialog(d, w);
       await persistDashboards(); viewDashboard(d.id);
     });
+    if (ed) {
+      const h = $(".drag", card);
+      h.addEventListener("dragstart", e => { S._drag = w.id; e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", w.id); e.dataTransfer.setDragImage(card, 20, 20); } catch (x) {} card.classList.add("dragging"); });
+      h.addEventListener("dragend", () => { S._drag = null; $$("#wgrid .card").forEach(c => c.classList.remove("over", "dragging")); });
+      card.addEventListener("dragover", e => { if (!S._drag || S._drag === w.id) return; e.preventDefault(); $$("#wgrid .card.over").forEach(c => c !== card && c.classList.remove("over")); card.classList.add("over"); });
+      card.addEventListener("dragleave", e => { if (!card.contains(e.relatedTarget)) card.classList.remove("over"); });
+      card.addEventListener("drop", async e => {
+        e.preventDefault(); const from = d.widgets.findIndex(x => x.id === S._drag); S._drag = null; if (from < 0) return;
+        const [it] = d.widgets.splice(from, 1); d.widgets.splice(d.widgets.findIndex(x => x.id === w.id), 0, it);
+        await persistDashboards(); viewDashboard(d.id);
+      });
+      $(".rz", card).addEventListener("mousedown", e => startResize(e, w, card));
+    }
   });
-  requestAnimationFrame(() => d.widgets.forEach(w => { const c = $(`[data-wid="${w.id}"]`); if (c) renderWidget(w, c); }));
+  if (ed && d.widgets.length) grid.insertAdjacentHTML("beforeend", '<button type="button" class="add-tile" id="d-add2">+ Widget</button>');
+  requestAnimationFrame(() => d.widgets.forEach(w => { const c = $('[data-wid="' + w.id + '"]'); if (c) renderWidget(w, c); }));
 
   $("#d-edit")?.addEventListener("click", () => { S.editing = !S.editing; viewDashboard(d.id); });
-  $("#d-add")?.addEventListener("click", () => openWidgetDialog(d, null));
+  [$("#d-add"), $("#d-add2"), $("#e-add")].forEach(b => b?.addEventListener("click", () => openWidgetDialog(d, null)));
+  $$("[data-tpl]").forEach(b => b.addEventListener("click", async () => {
+    const k = b.dataset.tpl; if (k === "blank") return openWidgetDialog(d, null);
+    d.widgets = JSON.parse(JSON.stringify(TEMPLATES[k].widgets)).map(w => ({ ...w, id: uid() })); S.editing = true;
+    await persistDashboards(); viewDashboard(d.id);
+  }));
   $("#d-rename")?.addEventListener("click", async () => { const n = prompt("Nome della dashboard", d.name); if (n) { d.name = n.trim(); await persistDashboards(); viewDashboard(d.id); } });
-  $("#d-del")?.addEventListener("click", async () => { if (!confirm(`Eliminare la dashboard «${d.name}»?`)) return; S.dashboards = S.dashboards.filter(x => x.id !== d.id); S.editing = false; await persistDashboards(); location.hash = "#/dashboard/default"; });
-  $("#d-dup").addEventListener("click", () => createDash({ name: d.name + " (copia)", widgets: d.widgets }));
-  $("#d-new").addEventListener("change", e => { const t = TEMPLATES[e.target.value]; if (t) createDash(t); });
-  $("#d-export").addEventListener("click", () => {
+  $("#d-del")?.addEventListener("click", async () => { if (!confirm("Eliminare la dashboard «" + d.name + "»?")) return; S.dashboards = S.dashboards.filter(x => x.id !== d.id); S.editing = false; await persistDashboards(); location.hash = "#/dashboard/default"; });
+  $("#d-dup")?.addEventListener("click", () => createDash({ name: d.name + " (copia)", widgets: d.widgets }));
+  $("#d-new")?.addEventListener("change", e => { const t = TEMPLATES[e.target.value]; if (t) createDash(t); });
+  $("#d-export")?.addEventListener("click", () => {
     const blob = new Blob([JSON.stringify({ name: d.name, widgets: d.widgets }, null, 2)], { type: "application/json" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `dashboard-${d.name.replace(/\W+/g, "-").toLowerCase()}.json`; a.click();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "dashboard-" + d.name.replace(/\W+/g, "-").toLowerCase() + ".json"; a.click();
   });
 }
+/** Ridimensionamento trascinando il bordo destro: aggancio a ¼ ⅓ ½ ⅔ intera. */
+function startResize(e, w, card) {
+  e.preventDefault();
+  const grid = $("#wgrid"), colW = (grid.getBoundingClientRect().width + 16) / 12, sx = e.clientX, sw = w.w || 6, SN = WIDTHS.map(x => x[0]);
+  card.classList.add("resizing");
+  const mv = ev => {
+    const raw = sw + (ev.clientX - sx) / colW, snap = SN.reduce((a, b) => Math.abs(b - raw) < Math.abs(a - raw) ? b : a);
+    if (snap !== w.w) { w.w = snap; card.className = card.className.replace(/\bw\d+\b/, "w" + snap); $$(".wchips button", card).forEach(b => b.classList.toggle("on", +b.dataset.w === snap)); }
+  };
+  const up = async () => { removeEventListener("mousemove", mv); removeEventListener("mouseup", up); card.classList.remove("resizing"); renderWidget(w, card); if (w.w !== sw) await persistDashboards(); };
+  addEventListener("mousemove", mv); addEventListener("mouseup", up);
+}
 async function createDash(tpl) {
-  const d = { id: uid(), name: tpl.name, widgets: JSON.parse(JSON.stringify(tpl.widgets)).map(w => ({ ...w, id: uid() })) };
+  const name = tpl === TEMPLATES.blank ? "Nuova dashboard " + (S.dashboards.length + 1) : tpl.name;
+  const d = { id: uid(), name, widgets: JSON.parse(JSON.stringify(tpl.widgets)).map(w => ({ ...w, id: uid() })) };
   S.dashboards.push(d); S.editing = true; S._lastDash = d.id;
-  await persistDashboards(); location.hash = `#/dashboard/${d.id}`;
+  await persistDashboards(); location.hash = "#/dashboard/" + d.id;
 }
 
+function autoTitle(w) {
+  const M = METRICS[w.metric] || {}, D = DIMS[w.dim] || {};
+  if (w.type === "commits") return w.sort === "worst" ? "Commit con esito peggiore" : "Commit recenti";
+  if (w.type === "findings") return "Finding da " + (SEV_META[w.minSeverity || "info"].label.toLowerCase()) + " in su";
+  if (w.type === "kpi") return M.label || "KPI";
+  if (w.type === "heatmap") return (M.label || "") + " per giorno e ora";
+  if (w.type === "hbar") return (M.label || "") + " per " + (D.label || "").toLowerCase();
+  return (M.label || "") + (w.split && DIMS[w.split] ? " per " + DIMS[w.split].label.toLowerCase() : "") + " nel tempo";
+}
+const WSHORT = { kpi: "KPI", line: "Linea", column: "Colonne", stacked: "Impilate", hbar: "Classifica", heatmap: "Heatmap", commits: "Tab. commit", findings: "Tab. finding" };
+const PICTO = (() => {
+  const S2 = b => '<svg width="34" height="22" viewBox="0 0 34 22" aria-hidden="true" style="display:block;color:currentColor">' + b + '</svg>';
+  const R = (x, y, w, h, f) => '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="1.5" fill="' + (f || "currentColor") + '"/>';
+  const heat = [1, 3, 5, 2, 6, 4, 3, 7, 2, 5, 1, 4, 6, 2, 3, 5, 7, 1]; let hm = "";
+  for (let y = 0; y < 3; y++) for (let x = 0; x < 6; x++) hm += R(2 + x * 5, 2 + y * 7, 4, 5.5, "var(--q" + heat[y * 6 + x] + "00)");
+  return {
+    kpi: S2('<text x="2" y="15" font-size="13" font-weight="700" fill="currentColor">8,6</text><path d="M27 14l3-4 3 4" fill="none" stroke="currentColor" stroke-width="1.6"/>'),
+    line: S2('<path d="M2 17L10 11L17 13L25 5L32 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'),
+    column: S2(R(3, 12, 5, 9) + R(10, 7, 5, 14) + R(17, 10, 5, 11) + R(24, 3, 5, 18)),
+    stacked: S2(R(3, 14, 5, 7) + R(3, 9, 5, 4, "var(--s2)") + R(10, 11, 5, 10) + R(10, 4, 5, 6, "var(--s2)") + R(17, 13, 5, 8) + R(17, 8, 5, 4, "var(--s2)") + R(24, 9, 5, 12) + R(24, 2, 5, 6, "var(--s2)")),
+    hbar: S2(R(2, 2, 28, 4) + R(2, 9, 20, 4) + R(2, 16, 12, 4)),
+    heatmap: S2(hm),
+    commits: S2(R(2, 2, 30, 3) + R(2, 8, 30, 2, "var(--grid)") + R(2, 13, 30, 2, "var(--grid)") + R(2, 18, 30, 2, "var(--grid)")),
+    findings: S2(R(2, 2, 4, 3, "var(--status-critical)") + R(8, 2, 24, 3) + R(2, 9, 4, 3, "var(--status-serious)") + R(8, 9, 24, 2, "var(--grid)") + R(2, 16, 4, 3, "var(--status-warning)") + R(8, 16, 24, 2, "var(--grid)")),
+  };
+})();
+
+/** Generatore di widget: form a sinistra, anteprima live sulla griglia a 12 colonne a destra. */
 function openWidgetDialog(d, w) {
   const isNew = !w;
-  w = w ? JSON.parse(JSON.stringify(w)) : { id: uid(), type: "hbar", metric: "commits", dim: "author", w: 6, top: 10, filters: {} };
+  w = w ? JSON.parse(JSON.stringify(w)) : { id: uid(), type: "stacked", metric: "findings", dim: "week", split: "severity", w: 6, top: 10, filters: {} };
   w.filters = w.filters || {};
-  const dlg = $("#wdlg");
-  const opt = (obj, sel, keys) => (keys || Object.keys(obj)).map(k => `<option value="${k}" ${k === sel ? "selected" : ""}>${esc(obj[k].label || obj[k])}</option>`).join("");
+  const dlg = $("#wdlg"); let prevTbl = false;
+  const opt = (obj, sel, keys) => (keys || Object.keys(obj)).map(k => '<option value="' + k + '" ' + (k === sel ? "selected" : "") + '>' + esc(obj[k].label || obj[k]) + '</option>').join("");
   const repos = [...new Set(S.commits.map(c => c.repo))].sort(), authors = [...new Set(S.commits.map(c => c.author))].sort();
-  const draw = () => {
-    const t = w.type, timeT = ["line", "column", "stacked"].includes(t);
-    dlg.innerHTML = `<form method="dialog"><h3 style="margin-top:0">${isNew ? "Nuovo widget" : "Configura widget"}</h3><div class="form">
-      <label>Titolo</label><input class="ctl" name="title" value="${esc(w.title || "")}" placeholder="${esc(WTYPES[t])}">
-      <label>Tipo</label><select class="ctl" name="type">${opt(WTYPES, t)}</select>
-      ${t === "commits" || t === "findings" ? "" : `<label>Metrica</label><select class="ctl" name="metric">${opt(METRICS, w.metric, t === "heatmap" ? ["commits", "findings", "blocking", "churn"] : null)}</select>`}
-      ${timeT ? `<label>Asse tempo</label><select class="ctl" name="dim">${opt(DIMS, TIME_DIMS.includes(w.dim) ? w.dim : "week", TIME_DIMS)}</select>
-        <label>Suddividi per</label><select class="ctl" name="split"><option value="">— nessuna —</option>${opt(DIMS, w.split, ["severity", "family", "repo", "author", "gate", "quality_band"])}</select>` : ""}
-      ${t === "hbar" ? `<label>Raggruppa per</label><select class="ctl" name="dim">${opt(DIMS, CAT_DIMS.includes(w.dim) ? w.dim : "author", CAT_DIMS)}</select>` : ""}
-      ${["hbar", "commits", "findings"].includes(t) ? `<label>Righe (top N)</label><input class="ctl" type="number" min="3" max="50" name="top" value="${w.top || 10}">` : ""}
-      ${t === "findings" ? `<label>Severità minima</label><select class="ctl" name="minSeverity">${SEV.map(s => `<option value="${s}" ${w.minSeverity === s ? "selected" : ""}>${SEV_META[s].label}</option>`).join("")}</select>` : ""}
-      ${t === "commits" ? `<label>Ordina per</label><select class="ctl" name="sort"><option value="date">Più recenti</option><option value="worst" ${w.sort === "worst" ? "selected" : ""}>Esito peggiore</option></select>` : ""}
-      <label>Larghezza</label><select class="ctl" name="w">${[[3, "¼"], [4, "⅓"], [6, "½"], [8, "⅔"], [12, "Intera"]].map(([v, l]) => `<option value="${v}" ${+w.w === v ? "selected" : ""}>${l}</option>`).join("")}</select>
-      <label style="grid-column:1/-1;font-weight:600;color:var(--text-primary);margin-top:6px">Filtri del widget (si sommano a quelli globali)</label>
-      <label>Repository</label><select class="ctl" name="f_repo"><option value="">— tutti —</option>${repos.map(r => `<option ${w.filters.repo === r ? "selected" : ""}>${esc(r)}</option>`).join("")}</select>
-      <label>Autore</label><select class="ctl" name="f_author"><option value="">— tutti —</option>${authors.map(a => `<option ${w.filters.author === a ? "selected" : ""}>${esc(a)}</option>`).join("")}</select>
-      <label>Tipo branch</label><select class="ctl" name="f_family"><option value="">— tutti —</option>${FAMILIES.map(f => `<option value="${f}" ${w.filters.family === f ? "selected" : ""}>${FAM_LABEL[f]}</option>`).join("")}</select>
-      <label>Con finding</label><select class="ctl" name="f_severity"><option value="">— qualsiasi —</option>${SEV.map(s => `<option value="${s}" ${w.filters.severity === s ? "selected" : ""}>${SEV_META[s].label}</option>`).join("")}</select>
-      </div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px"><button class="btn" value="cancel">Annulla</button><button class="btn primary" value="ok">${isNew ? "Aggiungi" : "Salva"}</button></div></form>`;
-    $("[name=type]", dlg).onchange = e => { read(); w.type = e.target.value; if (w.type === "hbar" && !CAT_DIMS.includes(w.dim)) w.dim = "author"; if (["line", "column", "stacked"].includes(w.type) && !TIME_DIMS.includes(w.dim)) w.dim = "week"; draw(); };
+  const field = (label, html) => '<div><label class="lbl2">' + label + '</label>' + html + '</div>';
+  const fix = () => {
+    if (w.type === "hbar" && !CAT_DIMS.includes(w.dim)) w.dim = "author";
+    if (["line", "column", "stacked"].includes(w.type) && !TIME_DIMS.includes(w.dim)) w.dim = "week";
+    if (w.type === "heatmap" && !["commits", "findings", "blocking", "churn"].includes(w.metric)) w.metric = "commits";
+    if (!["line", "stacked"].includes(w.type)) w.split = undefined;
   };
   const read = () => {
     const fd = new FormData($("form", dlg));
     for (const k of ["title", "metric", "dim", "split", "minSeverity", "sort"]) if (fd.has(k)) w[k] = fd.get(k) || undefined;
-    if (fd.has("top")) w.top = +fd.get("top"); w.w = +fd.get("w");
+    if (fd.has("top")) w.top = +fd.get("top") || 10;
     w.filters = { repo: fd.get("f_repo") || undefined, author: fd.get("f_author") || undefined, family: fd.get("f_family") || undefined, severity: fd.get("f_severity") || undefined };
   };
-  draw();
+  const draw = () => {
+    fix();
+    const t = w.type, timeT = ["line", "column", "stacked"].includes(t), fc = Object.values(w.filters).filter(Boolean).length;
+    const hasTbl = ["line", "column", "stacked", "hbar", "heatmap"].includes(t), ghost = 12 - ((+w.w) % 12 || 12);
+    const fields = [
+      t === "commits" || t === "findings" ? "" : field("Metrica", '<select class="ctl" name="metric">' + opt(METRICS, w.metric, t === "heatmap" ? ["commits", "findings", "blocking", "churn"] : null) + '</select>'),
+      timeT ? field("Asse tempo", '<select class="ctl" name="dim">' + opt(DIMS, w.dim, TIME_DIMS) + '</select>') : "",
+      t === "line" || t === "stacked" ? field("Suddividi per", '<select class="ctl" name="split"><option value="">— nessuna —</option>' + opt(DIMS, w.split, ["severity", "family", "repo", "author", "gate", "quality_band"]) + '</select>') : "",
+      t === "hbar" ? field("Raggruppa per", '<select class="ctl" name="dim">' + opt(DIMS, w.dim, CAT_DIMS) + '</select>') : "",
+      ["hbar", "commits", "findings"].includes(t) ? field("Righe (top N)", '<input class="ctl" type="number" min="3" max="50" name="top" value="' + (w.top || 10) + '">') : "",
+      t === "findings" ? field("Severità minima", '<select class="ctl" name="minSeverity">' + SEV.map(s => '<option value="' + s + '" ' + (w.minSeverity === s ? "selected" : "") + '>' + SEV_META[s].icon + " " + SEV_META[s].label + '</option>').join("") + '</select>') : "",
+      t === "commits" ? field("Ordina per", '<select class="ctl" name="sort"><option value="date">Più recenti</option><option value="worst" ' + (w.sort === "worst" ? "selected" : "") + '>Esito peggiore</option></select>') : "",
+    ].join("");
+    const sel = (name, all, list, cur) => '<select class="ctl" name="' + name + '"><option value="">' + all + '</option>' + list.map(([v, l]) => '<option value="' + esc(v) + '" ' + (cur === v ? "selected" : "") + '>' + esc(l) + '</option>').join("") + '</select>';
+    dlg.innerHTML = '<form method="dialog">' +
+      '<div class="wb-h"><h3>' + (isNew ? "Nuovo widget" : "Configura widget") + '</h3><button class="btn ghost" value="cancel" aria-label="Chiudi">✕</button></div>' +
+      '<div class="wb"><div class="wb-form">' +
+        '<div><span class="lbl2">Tipo di widget</span><div class="types">' + Object.keys(WTYPES).map(k => '<button type="button" data-type="' + k + '" class="' + (k === t ? "on" : "") + '" title="' + esc(WTYPES[k]) + '" aria-pressed="' + (k === t) + '">' + PICTO[k] + '<span>' + WSHORT[k] + '</span></button>').join("") + '</div></div>' +
+        field("Titolo", '<input class="ctl" name="title" value="' + esc(w.title || "") + '" placeholder="' + esc(autoTitle(w)) + '">') +
+        (fields ? '<div class="wb-2">' + fields + '</div>' : "") +
+        '<div><span class="lbl2">Larghezza</span><div class="widths">' + WIDTHS.map(([v, l]) => '<button type="button" data-wv="' + v + '" class="' + (v === +w.w ? "on" : "") + '" title="' + v + ' colonne su 12" aria-pressed="' + (v === +w.w) + '"><span class="bar"><i style="grid-column:span ' + v + '"></i></span>' + l + '</button>').join("") + '</div></div>' +
+        '<details ' + (fc ? "open" : "") + '><summary>Filtri del widget <span>— si sommano ai filtri globali · ' + (fc ? fc + " attivi" : "nessuno") + '</span></summary><div class="wb-2" style="padding:4px 0 12px">' +
+          field("Repository", sel("f_repo", "Tutti", repos.map(r => [r, r]), w.filters.repo)) +
+          field("Autore", sel("f_author", "Tutti", authors.map(a => [a, a]), w.filters.author)) +
+          field("Tipo branch", sel("f_family", "Tutti", FAMILIES.map(f => [f, FAM_LABEL[f]]), w.filters.family)) +
+          field("Con finding", sel("f_severity", "Qualsiasi", SEV.map(s => [s, SEV_META[s].label]), w.filters.severity)) +
+        '</div></details>' +
+      '</div><div class="wb-prev">' +
+        '<div style="display:flex;align-items:center;gap:8px"><span class="hint" style="flex:1">Anteprima live · dati del periodo selezionato</span>' + (hasTbl ? '<button type="button" class="btn ghost sm" id="wb-tbl">' + (prevTbl ? "Grafico" : "Tabella") + '</button>' : "") + '</div>' +
+        '<div class="pg"><section class="card" id="wb-card" style="grid-column:span ' + w.w + '" data-table="' + (prevTbl ? 1 : 0) + '"><div class="card-h"><div><div class="t" id="wb-t">' + esc(w.title || autoTitle(w)) + '</div><div class="st">' + esc(WTYPES[t]) + (widgetSubtitle(w) ? " · " + esc(widgetSubtitle(w)) : "") + '</div></div></div><div class="chart"></div></section>' +
+        (ghost ? '<div class="ghostc" style="grid-column:span ' + ghost + '"></div>' : "") + '</div>' +
+        '<div class="hint">Griglia a 12 colonne: il riquadro tratteggiato è lo spazio libero sulla riga.</div>' +
+      '</div></div>' +
+      '<div class="wb-f"><button class="btn" value="cancel">Annulla</button><button class="btn primary" value="ok">' + (isNew ? "Aggiungi" : "Salva") + '</button></div></form>';
+    $$("[data-type]", dlg).forEach(b => b.onclick = () => { read(); w.type = b.dataset.type; draw(); });
+    $$("[data-wv]", dlg).forEach(b => b.onclick = () => { read(); w.w = +b.dataset.wv; draw(); });
+    $$("select, input[type=number]", dlg).forEach(s => s.onchange = () => { read(); draw(); });
+    $("[name=title]", dlg).oninput = () => { read(); $("#wb-t", dlg).textContent = w.title || autoTitle(w); };
+    const tb = $("#wb-tbl", dlg); if (tb) tb.onclick = () => { read(); prevTbl = !prevTbl; draw(); };
+    requestAnimationFrame(() => renderWidget(w, $("#wb-card", dlg)));
+  };
   dlg.onclose = async () => {
     if (dlg.returnValue !== "ok") return;
-    read();
+    read(); if (!w.title) w.title = autoTitle(w);
     if (isNew) d.widgets.push(w); else d.widgets[d.widgets.findIndex(x => x.id === w.id)] = w;
     await persistDashboards(); viewDashboard(d.id);
   };
-  dlg.returnValue = ""; dlg.showModal();
+  dlg.returnValue = ""; draw(); dlg.showModal();
 }
 
 function coverageBanner() {
@@ -924,7 +1210,7 @@ function viewReports() {
   days.forEach(d => (byMonth[d.date.slice(0, 7)] ||= []).push(d));
   $("#main").innerHTML = `<h1>Report giornalieri</h1><p class="lede">${days.length} report nel periodo. Clicca un giorno per digest, briefing, report completo e grafici.</p>
     <section class="card" style="margin-bottom:16px"><div class="card-h"><div><div class="t">Copertura e quality per giorno di report</div><div class="st">Commit raccolti per giorno; i giorni con raccolta fallita sono marcati ⚠</div></div><div class="tools"><button class="btn ghost sm" id="rep-tbl">▤</button></div></div><div class="chart" id="rep-chart"></div></section>
-    ${Object.entries(byMonth).map(([m, ds]) => `<h3>${MESI[+m.slice(5, 7) - 1]} ${m.slice(0, 4)}</h3><div class="days">${ds.map(dayCard).join("")}</div>`).join("")}`;
+    ${Object.entries(byMonth).map(([m, ds]) => `<h3 class="month-h">${MESI_L[+m.slice(5, 7) - 1]} ${m.slice(0, 4)} <span>· ${ds.length} report</span></h3><div class="days">${ds.map(dayCard).join("")}</div>`).join("")}`;
   const draw = tbl => {
     const el = $("#rep-chart"), asc = [...days].reverse();
     if (tbl) return el.innerHTML = tableFromRows([{ l: "Giorno" }, { l: "Commit", n: 1 }, { l: "Quality", n: 1 }, { l: "Raccolta" }], asc.map(d => [dm(d.date), fmtN(d.commits), d.quality ?? "—", d.fetch_ok ? "ok" : "⚠ fallita"]));
@@ -932,11 +1218,17 @@ function viewReports() {
   };
   let t = false; draw(t); $("#rep-tbl").onclick = () => draw(t = !t);
 }
+const MESI_L = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
 function dayCard(d) {
-  return `<a class="day" href="#/reports/${d.date}"><div class="dd">${GIORNI[(parseDay(d.date).getDay() + 6) % 7]} ${dm(d.date)}</div>
-    <div class="q">${d.quality != null ? fmtN(d.quality, 1) : "—"}<span class="muted" style="font-size:12px;font-weight:400"> /10</span></div>
-    <div class="meta">${d.commits} commit · ${d.docs.includes("digest.md") ? "digest" : "no digest"}${d.docs.includes("briefing.md") ? " · briefing" : ""}</div>
-    ${d.fetch_ok ? "" : `<div class="meta" style="color:var(--text-primary)">⚠ raccolta fallita</div>`}</a>`;
+  const cs = S.commits.filter(c => c.day === d.date), by = {};
+  cs.flatMap(c => c.findings).forEach(f => by[f.severity] = (by[f.severity] || 0) + 1);
+  const sev = SEV.filter(s => by[s]).map(s => '<span class="sev ' + s + '">' + SEV_META[s].icon + ' ' + by[s] + ' ' + SEV_META[s].label + '</span>').join("") || (cs.some(c => c.reviewed) ? sevChip("clean") : "");
+  const docs = [d.docs.includes("digest.md") && "digest", d.docs.includes("briefing.md") && "briefing"].filter(Boolean).join(" · ") || "nessun documento";
+  const qp = d.quality != null ? Math.max(0, Math.min(100, (d.quality - 5) / 5 * 100)) : 0;
+  return '<a class="day ' + (d.fetch_ok ? "" : "fail") + '" href="#/reports/' + d.date + '"><div class="top"><span class="wd">' + GIORNI[(parseDay(d.date).getDay() + 6) % 7] + '</span><span class="dd">' + dm(d.date) + '</span><span class="n">' + d.commits + ' commit</span></div>' +
+    '<div class="qr"><span>Quality</span><strong>' + (d.quality != null ? fmtN(d.quality, 1) : "—") + '</strong><span class="trk"><i style="width:' + qp + '%"></i></span></div>' +
+    (d.fetch_ok ? "" : '<span class="flag">⚠ Raccolta git fallita — dati parziali</span>') +
+    (sev ? '<div class="sevs">' + sev + '</div>' : "") + '<div class="meta">' + docs + '</div></a>';
 }
 async function viewDay(date) {
   setTitle(`Report ${dm(date)}`);
@@ -1037,7 +1329,7 @@ async function openCommit(id) {
       <div class="card w4"><div class="kpi"><div class="l">Quality</div><div class="v">${c.quality ?? "—"}<span class="muted" style="font-size:14px;font-weight:400">/10</span></div></div></div>
       <div class="card w8"><div class="kpi"><div class="l">Esito</div><div style="margin-top:6px">${c.reviewed ? sevChip(c.worst) : "non revisionato"}</div>${c.summary ? `<div class="d" style="color:var(--text-secondary)">${esc(c.summary)}</div>` : ""}</div></div>
     </div>
-    ${c.findings.length ? `<h3>Finding (${c.findings.length})</h3>` + c.findings.map(f => `<div class="finding" style="--c:${SEV_META[f.severity]?.color}">${sevChip(f.severity)} <span class="mono">${esc(f.rule_id)}</span> — ${esc(f.message)}${f.file ? `<div class="muted mono">${esc(f.file)}${f.line ? ":" + esc(f.line) : ""}</div>` : ""}${f.suggestion ? `<div>💬 ${esc(f.suggestion)}</div>` : ""}</div>`).join("") : ""}
+    ${c.findings.length ? `<h3>Finding (${c.findings.length})</h3>` + c.findings.map(f => `<div class="finding" style="--c:${SEV_META[f.severity]?.color}">${sevChip(f.severity)} <span class="mono">${esc(f.rule_id)}</span> — ${esc(f.message)}${f.file ? `<div class="muted mono">${esc(f.file)}${f.line ? ":" + esc(f.line) : ""}</div>` : ""}${f.suggestion ? `<div class="fx">Suggerimento: ${esc(f.suggestion)}</div>` : ""}</div>`).join("") : ""}
     <h3>File (${c.files.length})</h3><div class="mono" style="line-height:1.8">${c.files.map(esc).join("<br>")}</div>
     <h3>Diff</h3><div class="diff" id="dr-diff">Caricamento…</div>`;
   d.style.display = $("#drawer-bg").style.display = "block"; d.scrollTop = 0;
@@ -1212,7 +1504,7 @@ async function viewKB() {
     <div class="grid" style="margin-bottom:16px">${["pending", "approved", "merged", "rejected"].map(k => `<section class="card w3"><div class="kpi"><div class="l">${{ pending: "In attesa", approved: "Approvate", merged: "Integrate", rejected: "Rifiutate" }[k]}</div><div class="v">${st[k] || 0}</div></div></section>`).join("")}</div>
     <section class="card">${ss.length ? tableFromRows([{ l: "Stato" }, { l: "ID" }, { l: "Layer / sezione" }, { l: "Tipo" }, { l: "Confidenza", n: 1 }, { l: "Motivazione" }],
       ss.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || String(b.id).localeCompare(String(a.id))).map(s => [
-        `<span class="pill">${esc(s.status)}</span>`, `<span class="mono">${esc(s.id)}</span><div class="muted">${esc(s.date || "")}</div>`,
+        `<span class="st-dot" style="${{ pending: "--c:var(--accent)", approved: "--c:var(--status-good);--f:var(--status-good)", merged: "--c:var(--status-good);--f:var(--status-good)", rejected: "--c:var(--text-muted);--f:var(--text-muted)" }[s.status] || "--c:var(--axis)"}">${{ pending: "In attesa", approved: "Approvata", merged: "Integrata", rejected: "Rifiutata" }[s.status] || esc(s.status)}</span>`, `<span class="mono">${esc(s.id)}</span><div class="muted">${esc(s.date || "")}</div>`,
         `${esc(s.layer)}<div class="muted mono">${esc(s.section)}</div>`, esc(s.type), s.confidence != null ? Math.round(s.confidence * 100) + "%" : "—",
         `<div>${esc(s.reason)}</div>${s.content ? `<details><summary class="muted">contenuto</summary><pre class="mono" style="white-space:pre-wrap">${esc(JSON.stringify(s.content, null, 2))}</pre></details>` : ""}`])) : `<div class="empty">Nessuna suggestion</div>`}</section>`;
 }
@@ -1260,7 +1552,7 @@ function route() {
   closeDrawer();
   const parts = (location.hash || "#/dashboard/default").slice(2).split("/");
   const r = parts[0] || "dashboard";
-  $$("#side a.nav[data-r]").forEach(a => a.classList.toggle("active", a.dataset.r === r && !(r === "dashboard" && parts[1] && parts[1] !== "default")));
+  $$("#side a.nav[data-r]").forEach(a => a.classList.toggle("active", a.dataset.r === r && r !== "dashboard"));
   if (r !== "dashboard") renderDashLinks(null);
   if (r === "dashboard") { if (parts[1] !== S._lastDash) S.editing = false; S._lastDash = parts[1]; return viewDashboard(parts[1] || "default"); }
   if (r === "reports") return parts[1] ? viewDay(parts[1]) : viewReports();
