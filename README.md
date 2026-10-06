@@ -16,6 +16,7 @@ License: **AGPL-3.0-only** · Python 3.10+ core · TypeScript MCP server
 - **Multi-provider AI** — Anthropic Claude, OpenAI, Google Gemini, or any local model via Ollama (fully offline)
 - **Self-improving knowledge base** — 7-layer project context that learns from each review, with a code-enforced auto-merge policy and human approval for high-impact changes
 - **Markdown + HTML output** — every run writes `daily-summary.md` and a self-contained `dashboard.html` (quality trend, gate and per-author charts, filterable commit list, a table view behind every chart). No CDN, no network calls: your code review data never leaves the machine
+- **Web portal** — a local, navigable interface over every report collected: a default reviewer dashboard plus custom ones you build from widgets, commit and review history with diffs, per-day reports, a git-flow graph of the real branch topology, release timeline from version tags, author mentoring signals and the KB queue
 - **RAG-ready** — optional integration with an external RAG service for semantic context
 - **Cross-platform scheduling** — macOS (launchd), Linux (cron), Windows (Task Scheduler); secrets stay in `.env`, never in the scheduler files
 - **Setup wizard** — web-based configuration, no manual YAML editing required
@@ -55,6 +56,8 @@ python3 scripts/daily_review.py --days 5           # last N days
 python3 scripts/daily_review.py --collect-only     # git data only, no AI
 python3 scripts/daily_review.py --history          # report history index
 
+python3 scripts/portal.py                          # web portal on http://127.0.0.1:8765
+
 python3 scripts/kb_manager.py --review             # interactive KB curation
 python3 scripts/kb_manager.py --approve <ID>       # non-interactive approve
 python3 scripts/kb_manager.py --reject  <ID>       # non-interactive reject
@@ -65,6 +68,32 @@ The `python3` above can be any interpreter: if it lacks the dependencies, the
 entry points re-exec themselves under the project `.venv` (or `$GDR_PYTHON`),
 and tell you how to create it if there isn't one. This matters for cron and
 launchd, where `python3` is often the bare system Python.
+
+---
+
+## Web portal
+
+```bash
+python3 scripts/portal.py                 # opens http://127.0.0.1:8765
+python3 scripts/portal.py --port 9000 --no-browser
+```
+
+A single local page (Python standard library + vanilla JS, SVG charts, no CDN,
+listening on `127.0.0.1` only) that aggregates everything under `reports/`:
+
+| View | What it shows |
+|------|---------------|
+| **Dashboard** | Default *reviewer overview* (KPIs with delta vs. previous period, quality trend, commits per branch type, findings per severity, top violated gates, quality per author, directory hotspots, commit-time heatmap, findings to discuss). Create custom dashboards — blank or from the *Author mentoring* / *Releases & stability* templates — and add widgets: KPI, line, columns, stacked columns, horizontal ranking, heatmap, commit or finding tables. Each widget picks a metric (commits, quality, findings, critical+error, churn, files, % reviewed, authors, lines per commit), a grouping (day/week/month, author, repo, branch, branch type, gate, severity, directory, file, weekday, hour, quality band), an optional split and its own filters. |
+| **Daily reports** | Coverage per day (failed `git fetch` flagged), then per-day KPIs, charts, the digest, briefing and full report rendered, and a link to that day's `dashboard.html`. |
+| **Commit history** | Every collected commit with its review outcome; search, filter, sort; a drawer with findings, files and the diff (falls back to `git show` on the local clone when the diff was not saved). |
+| **Authors** | Quality, findings by severity, average commit size and the recurring gate per author (mentoring signal). |
+| **Git-flow** | Lane graph of the real topology from the local clone (`git log --all`, never `fetch`): branches coloured by type (main, develop, release, hotfix, feature, bugfix), merges, tags, and review score on reviewed commits; weekly activity by branch type and review coverage. |
+| **Releases** | Version tags with the number of commits each release introduced and the days between releases. |
+| **KB suggestions** | Read-only view of the suggestion queue; decisions still go through `kb_manager.py`. |
+
+Global filters (period, repository, author) apply to every view. The only file
+the portal writes is `reports/.portal/dashboards.json` (custom dashboards),
+which is git-ignored like the rest of `reports/`.
 
 ---
 
@@ -162,11 +191,15 @@ git-daily-review/
 │   ├── rag_client.py           ← optional RAG client
 │   ├── report_generator.py     ← Markdown reports + history index
 │   ├── html_report.py          ← self-contained HTML dashboard (charts, filters)
+│   ├── portal.py               ← local web portal (HTTP server, read-only API)
+│   ├── portal_data.py          ← dataset across all reports, git-flow layout, releases
 │   ├── scheduler.py            ← launchd / cron / schtasks (no secrets on disk)
 │   └── wizard_app.py           ← wizard HTTP backend
 ├── mcp/                        ← MCP server (TypeScript)
 │   └── src/index.ts
-├── templates/wizard.html
+├── templates/
+│   ├── wizard.html
+│   └── portal.html             ← portal single-page app
 └── reports/                    ← generated daily reports (git-ignored)
 ```
 

@@ -32,6 +32,11 @@ Rebuild the dashboard without re-running the AI (needed after writing the
 digest, so the digest appears inside the page):
 `python3 scripts/html_report.py --date YYYY-MM-DD`
 
+Web portal (all reports, history, git-flow, custom dashboards):
+`python3 scripts/portal.py` → http://127.0.0.1:8765. Local only, read-only
+on reports/KB/repos. Point the user here when they want to browse or
+aggregate across days rather than read a single report.
+
 Knowledge base curation:
 - List suggestions: `python3 scripts/kb_manager.py --list [--status pending]`
 - Approve one: `python3 scripts/kb_manager.py --approve <ID>`
