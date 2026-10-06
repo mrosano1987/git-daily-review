@@ -8,10 +8,14 @@ git-flow dei repository, timeline dei rilasci e coda KB.
     python3 scripts/portal.py            # http://127.0.0.1:8765
     python3 scripts/portal.py --port 9000 --no-browser
 
+I dati vengono dalla base dati locale (`review_db.py`, `data/review.db`),
+alimentata dalle routine; a ogni richiesta del dataset il portale fa un
+import incrementale dei file cambiati sotto `reports/` e della coda KB.
+Git-flow e rilasci si leggono dal vivo dai cloni locali (mai `fetch`).
+
 Solo locale: ascolta su 127.0.0.1, nessun CDN, nessuna chiamata esterna — i
 dati sono del cliente. Sola lettura su report, KB e repository; l'unica
-scrittura è il file delle dashboard personalizzate in
-`reports/.portal/dashboards.json` (gitignored come tutto `reports/`).
+scrittura dell'utente sono le dashboard personalizzate, salvate nel DB.
 """
 
 import argparse
@@ -20,6 +24,7 @@ import json
 import re
 import sys
 import threading
+import time
 import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -27,66 +32,27 @@ from urllib.parse import parse_qs, urlparse
 sys.path.insert(0, str(Path(__file__).parent))
 
 import portal_data as pd  # noqa: E402
+import review_db as db  # noqa: E402
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT_DIR / "templates" / "portal.html"
-DASHBOARDS_PATH = pd.REPORTS_DIR / ".portal" / "dashboards.json"
-SUGGESTIONS_DIR = ROOT_DIR / "config" / "kb_suggestions"
 MAX_BODY = 512 * 1024
+SYNC_INTERVAL = 5  # secondi minimi tra due scansioni dei file
 
-_cache = {"sig": None, "data": None}
+_cache = {"version": None, "data": None, "synced": 0.0}
 _cache_lock = threading.Lock()
 
 
 def get_dataset() -> dict:
-    sig = pd.dataset_signature()
     with _cache_lock:
-        if _cache["sig"] != sig:
-            _cache["data"] = pd.load_dataset()
-            _cache["sig"] = sig
+        if time.monotonic() - _cache["synced"] > SYNC_INTERVAL:
+            db.sync()
+            _cache["synced"] = time.monotonic()
+        version = db.data_version()
+        if _cache["version"] != version:
+            _cache["data"] = db.load_dataset()
+            _cache["version"] = version
         return _cache["data"]
-
-
-def repo_path(name: str):
-    for r in get_dataset()["repos"]:
-        if r["name"] == name:
-            return r["path"]
-    return None
-
-
-def load_kb_suggestions() -> list:
-    """Tutte le suggestion KB (qualsiasi stato), in sola lettura."""
-    if not SUGGESTIONS_DIR.exists():
-        return []
-    try:
-        import yaml
-    except ImportError:
-        return [{"error": "PyYAML non disponibile: avvia il portale con il venv del progetto"}]
-    out = []
-    for p in sorted(SUGGESTIONS_DIR.glob("*.yaml")):
-        try:
-            data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
-        except Exception:
-            continue
-        out.append({k: data.get(k) for k in (
-            "id", "date", "source", "layer", "section", "type", "reason",
-            "confidence", "auto_approvable", "status", "repo", "reviewed_at", "content")})
-    return out
-
-
-def load_dashboards() -> list:
-    try:
-        data = json.loads(DASHBOARDS_PATH.read_text(encoding="utf-8"))
-        return data if isinstance(data, list) else []
-    except (OSError, json.JSONDecodeError):
-        return []
-
-
-def save_dashboards(dashboards: list):
-    DASHBOARDS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    tmp = DASHBOARDS_PATH.with_suffix(".tmp")
-    tmp.write_text(json.dumps(dashboards, indent=2, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(DASHBOARDS_PATH)
 
 
 class PortalHandler(http.server.BaseHTTPRequestHandler):
@@ -110,29 +76,29 @@ class PortalHandler(http.server.BaseHTTPRequestHandler):
             return self._json(get_dataset())
         m = re.fullmatch(r"/api/day/(\d{4}-\d{2}-\d{2})", path)
         if m:
-            return self._json(pd.day_documents(m.group(1)))
+            return self._json(db.day_documents(m.group(1)))
         m = re.fullmatch(r"/reports/(\d{4}-\d{2}-\d{2})/dashboard\.html", path)
         if m:
-            return self._send_file(pd.REPORTS_DIR / m.group(1) / "dashboard.html",
+            return self._send_file(db.REPORTS_DIR / m.group(1) / "dashboard.html",
                                    "text/html; charset=utf-8")
         if path == "/api/diff":
-            diff = pd.commit_diff(qs.get("repo", ""), qs.get("hash", ""))
+            diff = db.commit_diff(qs.get("repo", ""), qs.get("hash", ""))
             if not diff:
-                diff = pd.git_show(repo_path(qs.get("repo", "")), qs.get("hash", ""))
+                diff = pd.git_show(db.repo_path(qs.get("repo", "")), qs.get("hash", ""))
             return self._json({"diff": diff})
         if path == "/api/gitgraph":
-            rp = repo_path(qs.get("repo", ""))
+            rp = db.repo_path(qs.get("repo", ""))
             if not rp:
                 return self._json({"error": "repository sconosciuto", "commits": [], "lanes": 0})
             limit = min(int(qs.get("limit", "800") or 800), 3000)
             return self._json(pd.git_graph(rp, qs.get("since", ""), qs.get("until", ""), limit))
         if path == "/api/releases":
-            rp = repo_path(qs.get("repo", ""))
+            rp = db.repo_path(qs.get("repo", ""))
             return self._json({"tags": pd.release_timeline(rp) if rp else []})
         if path == "/api/kb":
-            return self._json({"suggestions": load_kb_suggestions()})
+            return self._json({"suggestions": db.kb_suggestions()})
         if path == "/api/dashboards":
-            return self._json({"dashboards": load_dashboards()})
+            return self._json({"dashboards": db.load_dashboards()})
         return self.send_error(404)
 
     def do_PUT(self):
@@ -152,7 +118,7 @@ class PortalHandler(http.server.BaseHTTPRequestHandler):
             assert isinstance(dashboards, list)
         except (ValueError, KeyError, AssertionError):
             return self.send_error(400)
-        save_dashboards(dashboards)
+        db.save_dashboards(dashboards)
         return self._json({"ok": True})
 
     def _send_file(self, path: Path, ctype: str):
@@ -186,6 +152,13 @@ def main():
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
+
+    res = db.sync()
+    _cache["synced"] = time.monotonic()
+    st = db.stats()
+    print(f"🗄  Base dati: {st['db']}")
+    print(f"   {st['days']} giorni ({st['from']} → {st['to']}), {st['commits']} commit, "
+          f"{st['reviews']} review · importati ora: {len(res['days'])} giorni")
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), PortalHandler)
     url = f"http://127.0.0.1:{args.port}"

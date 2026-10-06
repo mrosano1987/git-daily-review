@@ -1320,6 +1320,14 @@ def main():
 
     print(f"✓ Dashboard aggiornata: {path}")
 
+    # Il digest appena scritto entra anche nella base dati del portale.
+    try:
+        import review_db
+        review_db.ingest_day(args.date, Path(reports_dir))
+        print("✓ Base dati aggiornata")
+    except Exception as e:
+        print(f"⚠ Base dati non aggiornata: {e}")
+
 
 if __name__ == "__main__":
     main()

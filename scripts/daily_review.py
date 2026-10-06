@@ -304,6 +304,15 @@ def run_review(target_date: str, config: dict, collect_only: bool = False):
     index_path = generate_history_index(reports_dir)
     print(f"  {C.GREEN}✓{C.END} Indice aggiornato: {index_path}")
 
+    # Base dati del portale: importa subito il giorno appena revisionato
+    try:
+        import review_db
+        st = review_db.ingest_day(target_date, Path(reports_dir))
+        print(f"  {C.GREEN}✓{C.END} Base dati: {st['commits']} commit, {st['reviews']} review")
+    except Exception as e:
+        # I report sono già scritti: il portale li importerà al prossimo sync.
+        print(f"  {C.YELLOW}⚠{C.END} Base dati non aggiornata: {e}")
+
     # Riepilogo finale
     total_commits = sum(len(r.commits) for r in repo_reports)
     print(f"\n{C.BOLD}{C.GREEN}{'='*60}{C.END}")

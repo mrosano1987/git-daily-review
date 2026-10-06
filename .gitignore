@@ -14,6 +14,8 @@ reports/*
 !reports/.gitkeep
 logs/*
 !logs/.gitkeep
+# Review database (fed by the routines; holds client data)
+data/
 scripts/run_review.bat
 
 # ── Python ────────────────────────────────────────────────

@@ -57,6 +57,9 @@ python3 scripts/daily_review.py --collect-only     # git data only, no AI
 python3 scripts/daily_review.py --history          # report history index
 
 python3 scripts/portal.py                          # web portal on http://127.0.0.1:8765
+python3 scripts/review_db.py --sync                # import new report files into the database
+python3 scripts/review_db.py --rebuild             # rebuild the database from reports/
+python3 scripts/review_db.py --stats
 
 python3 scripts/kb_manager.py --review             # interactive KB curation
 python3 scripts/kb_manager.py --approve <ID>       # non-interactive approve
@@ -79,7 +82,7 @@ python3 scripts/portal.py --port 9000 --no-browser
 ```
 
 A single local page (Python standard library + vanilla JS, SVG charts, no CDN,
-listening on `127.0.0.1` only) that aggregates everything under `reports/`:
+listening on `127.0.0.1` only) backed by a local SQLite database:
 
 | View | What it shows |
 |------|---------------|
@@ -91,9 +94,26 @@ listening on `127.0.0.1` only) that aggregates everything under `reports/`:
 | **Releases** | Version tags with the number of commits each release introduced and the days between releases. |
 | **KB suggestions** | Read-only view of the suggestion queue; decisions still go through `kb_manager.py`. |
 
-Global filters (period, repository, author) apply to every view. The only file
-the portal writes is `reports/.portal/dashboards.json` (custom dashboards),
-which is git-ignored like the rest of `reports/`.
+Global filters (period, repository, author) apply to every view.
+
+### Review database
+
+`data/review.db` (SQLite, git-ignored, override with `$GDR_DB`) archives what
+the routines produce: collected commits with diffs, review outcomes and
+findings, per-repo collection status and AI summaries, the day's documents
+(`daily-summary.md`, `digest.md`, `briefing.md`, …), the KB suggestion queue
+and the custom dashboards. It is fed in three ways:
+
+- `daily_review.py` imports the day at the end of every run;
+- `html_report.py --date` (the step after the digest) re-imports the day, so the digest lands too;
+- the portal runs an incremental sync (file mtimes under `reports/` and
+  `config/kb_suggestions/`) at most every 5 s while in use, so documents
+  written by agents — such as the morning briefing — show up with no extra hook.
+
+`reports/` stays the source of truth: `review_db.py --rebuild` recreates the
+database from it (custom dashboards are kept). Days stay in the database even
+if their report folder is later deleted. Git-flow and releases are still read
+live from the local clones.
 
 ---
 
@@ -192,7 +212,8 @@ git-daily-review/
 │   ├── report_generator.py     ← Markdown reports + history index
 │   ├── html_report.py          ← self-contained HTML dashboard (charts, filters)
 │   ├── portal.py               ← local web portal (HTTP server, read-only API)
-│   ├── portal_data.py          ← dataset across all reports, git-flow layout, releases
+│   ├── review_db.py            ← SQLite review database: schema, import from reports, queries
+│   ├── portal_data.py          ← git-flow layout, releases, git show fallback
 │   ├── scheduler.py            ← launchd / cron / schtasks (no secrets on disk)
 │   └── wizard_app.py           ← wizard HTTP backend
 ├── mcp/                        ← MCP server (TypeScript)
