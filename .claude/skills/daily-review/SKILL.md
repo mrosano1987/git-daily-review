@@ -35,7 +35,11 @@ digest, so the digest appears inside the page):
 Web portal (all reports, history, git-flow, custom dashboards):
 `python3 scripts/portal.py` → http://127.0.0.1:8765. Local only, read-only
 on reports/KB/repos. Point the user here when they want to browse or
-aggregate across days rather than read a single report.
+aggregate across days rather than read a single report. The portal reads
+from `data/review.db` (SQLite), which every review run and the digest's
+`html_report.py` step update; `python3 scripts/review_db.py --sync` imports
+anything new (e.g. a briefing), `--stats` shows what it holds. Never commit
+`data/` — it holds client data.
 
 Knowledge base curation:
 - List suggestions: `python3 scripts/kb_manager.py --list [--status pending]`
