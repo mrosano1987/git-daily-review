@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Review · Portale</title>
+<style>
+/* ── Token: istanza di riferimento dataviz (stessa palette di dashboard.html) ── */
+:root {
+  color-scheme: light;
+  --plane: #f9f9f7; --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --hover: rgba(11,11,11,0.05);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+  --q100: #cde2fb; --q200: #9ec5f4; --q300: #6da7ec; --q400: #3987e5; --q500: #256abf; --q600: #184f95; --q700: #0d366b;
+  --status-good: #0ca30c; --status-warning: #fab219; --status-serious: #ec835a; --status-critical: #d03b3b;
+  --delta-up: #006300; --delta-down: #b42828;
+  --accent: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --plane: #0d0d0d; --surface-1: #1a1a19; --surface-2: #232321;
+    --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --hover: rgba(255,255,255,0.06);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --q100: #0d366b; --q200: #104281; --q300: #184f95; --q400: #1c5cab; --q500: #2a78d6; --q600: #5598e7; --q700: #9ec5f4;
+    --delta-up: #0ca30c; --delta-down: #e66767; --accent: #3987e5;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plane: #0d0d0d; --surface-1: #1a1a19; --surface-2: #232321;
+  --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --hover: rgba(255,255,255,0.06);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --q100: #0d366b; --q200: #104281; --q300: #184f95; --q400: #1c5cab; --q500: #2a78d6; --q600: #5598e7; --q700: #9ec5f4;
+  --delta-up: #0ca30c; --delta-down: #e66767; --accent: #3987e5;
+}
+
+* { box-sizing: border-box; }
+html { height: 100%; }
+body { margin: 0; min-height: 100%; }
+body {
+  background: var(--plane); color: var(--text-primary);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  display: grid; grid-template-columns: 220px 1fr; grid-template-rows: auto 1fr;
+  grid-template-areas: "side top" "side main";
+}
+a { color: var(--accent); }
+button, select, input { font: inherit; color: inherit; }
+
+/* ── Shell ── */
+#side {
+  grid-area: side; background: var(--surface-1); border-right: 1px solid var(--border);
+  padding: 16px 10px; position: sticky; top: 0; height: 100vh; overflow-y: auto; align-self: start;
+}
+.brand { font-weight: 700; font-size: 15px; padding: 4px 10px 2px; }
+.brand-sub { color: var(--text-muted); font-size: 12px; padding: 0 10px 14px; }
+.nav-group { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 14px 10px 4px; }
+#side a.nav {
+  display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px;
+  color: var(--text-secondary); text-decoration: none;
+}
+#side a.nav:hover { background: var(--hover); }
+#side a.nav.active { background: var(--surface-2); color: var(--text-primary); font-weight: 600; }
+#side a.nav .ico { width: 18px; text-align: center; }
+#side .dash-link { padding-left: 38px; font-size: 13px; }
+
+#top {
+  grid-area: top; position: sticky; top: 0; z-index: 5;
+  background: color-mix(in srgb, var(--plane) 92%, transparent); backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--border); padding: 10px 24px;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+}
+#top .title { font-weight: 650; font-size: 16px; margin-right: auto; }
+main { grid-area: main; padding: 20px 24px 64px; min-width: 0; }
+
+.ctl {
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 10px; min-height: 34px;
+}
+select.ctl { padding-right: 26px; }
+.btn {
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 12px; cursor: pointer; min-height: 34px; white-space: nowrap;
+}
+.btn:hover { background: var(--hover); }
+.btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
+.btn.danger { color: var(--status-critical); }
+.btn.ghost { background: transparent; border-color: transparent; }
+.btn.sm { min-height: 28px; padding: 3px 9px; font-size: 13px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface-1); padding: 6px 10px; cursor: pointer; min-height: 32px; }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button.on { background: var(--surface-2); font-weight: 600; }
+.seg button.on::before { content: "✓ "; font-weight: 700; }
+
+/* ── Layout contenuti ── */
+h1 { font-size: 22px; margin: 0 0 4px; }
+.lede { color: var(--text-secondary); margin: 0 0 18px; }
+.grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+.w3 { grid-column: span 3; } .w4 { grid-column: span 4; } .w6 { grid-column: span 6; }
+.w8 { grid-column: span 8; } .w12 { grid-column: span 12; }
+@media (max-width: 1100px) { .w3 { grid-column: span 6; } .w4, .w6, .w8 { grid-column: span 12; } }
+@media (max-width: 760px) { body { grid-template-columns: 1fr; grid-template-areas: "top" "main"; } #side { display: none; } .w3 { grid-column: span 12; } }
+
+.card {
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 18px; min-width: 0; position: relative;
+}
+.card-h { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+.card-h .t { font-weight: 650; }
+.card-h .st { color: var(--text-muted); font-size: 12px; }
+.card-h .tools { margin-left: auto; display: flex; gap: 4px; }
+.chart { width: 100%; position: relative; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.empty { color: var(--text-muted); padding: 28px 0; text-align: center; }
+
+/* KPI / stat tile */
+.kpi .v { font-size: 30px; font-weight: 650; line-height: 1.15; margin-top: 2px; }
+.kpi .l { color: var(--text-secondary); font-size: 13px; }
+.kpi .d { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.kpi .d .up { color: var(--delta-up); } .kpi .d .down { color: var(--delta-down); }
+
+/* Assi / segni */
+.ax text, .lbl { fill: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.gridline { stroke: var(--grid); stroke-width: 1; }
+.baseline { stroke: var(--axis); stroke-width: 1; }
+.hit { fill: transparent; cursor: default; }
+.hit:hover + .guide, .band:hover .guide { opacity: 1; }
+.guide { stroke: var(--axis); stroke-width: 1; opacity: 0; pointer-events: none; }
+.band:hover .bandbg { fill: var(--hover); }
+.dlabel { fill: var(--text-secondary); font-size: 11px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+.legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+#tip {
+  position: fixed; z-index: 50; pointer-events: none; display: none;
+  background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--border);
+  box-shadow: 0 6px 24px rgba(0,0,0,.14); border-radius: 8px; padding: 8px 10px; font-size: 12px; max-width: 320px;
+}
+#tip b { font-weight: 650; }
+#tip .row { display: flex; gap: 10px; justify-content: space-between; }
+#tip .row span:last-child { font-variant-numeric: tabular-nums; }
+
+/* Tabelle */
+table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.t th, table.t td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+table.t th { color: var(--text-muted); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--surface-1); cursor: default; }
+table.t th.sort { cursor: pointer; }
+table.t th.sort:hover { color: var(--text-primary); }
+table.t td.n, table.t th.n { text-align: right; font-variant-numeric: tabular-nums; }
+table.t tr.click { cursor: pointer; }
+table.t tr.click:hover td { background: var(--hover); }
+.scroll { overflow: auto; max-height: 560px; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+.muted { color: var(--text-muted); }
+.ellip { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Chip severità: icona + etichetta, mai solo colore */
+.sev { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; white-space: nowrap; }
+.sev::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.sev.critical { --c: var(--status-critical); } .sev.error { --c: var(--status-serious); }
+.sev.warning { --c: var(--status-warning); } .sev.info { --c: var(--text-muted); }
+.sev.clean { --c: var(--status-good); }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 99px; background: var(--surface-2); font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+.pill.fam::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--c); margin-right: 5px; }
+.banner { border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; background: color-mix(in srgb, var(--status-warning) 16%, var(--surface-1)); border: 1px solid color-mix(in srgb, var(--status-warning) 50%, transparent); }
+
+/* Report: lista giorni */
+.days { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.day {
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+  text-decoration: none; color: inherit; display: block;
+}
+.day:hover { background: var(--hover); }
+.day .dd { font-weight: 650; }
+.day .q { font-size: 22px; font-weight: 650; }
+.day .meta { color: var(--text-muted); font-size: 12px; }
+
+/* Markdown */
+.md { line-height: 1.6; }
+.md h1, .md h2, .md h3, .md h4 { line-height: 1.3; margin: 18px 0 8px; }
+.md h1 { font-size: 20px; } .md h2 { font-size: 17px; } .md h3 { font-size: 15px; } .md h4 { font-size: 14px; }
+.md table { border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+.md th, .md td { border: 1px solid var(--border); padding: 5px 8px; text-align: left; }
+.md code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+.md pre { background: var(--surface-2); padding: 10px 12px; border-radius: 8px; overflow: auto; }
+.md pre code { background: none; padding: 0; }
+.md blockquote { margin: 8px 0; padding: 4px 12px; border-left: 3px solid var(--axis); color: var(--text-secondary); }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+.tabs button { background: none; border: 0; padding: 8px 12px; cursor: pointer; color: var(--text-secondary); border-bottom: 2px solid transparent; }
+.tabs button.on { color: var(--text-primary); border-bottom-color: var(--accent); font-weight: 600; }
+
+/* Drawer commit */
+#drawer-bg { position: fixed; inset: 0; background: rgba(0,0,0,.28); z-index: 30; display: none; }
+#drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(760px, 96vw); z-index: 31; display: none;
+  background: var(--surface-1); border-left: 1px solid var(--border); overflow-y: auto; padding: 20px 22px;
+}
+.diff { font-family: ui-monospace, Menlo, monospace; font-size: 12px; white-space: pre; overflow: auto; background: var(--surface-2); border-radius: 8px; padding: 10px; max-height: 60vh; }
+.diff span { display: block; min-height: 1em; }
+.diff .a { background: color-mix(in srgb, var(--status-good) 16%, transparent); display: block; }
+.diff .r { background: color-mix(in srgb, var(--status-critical) 14%, transparent); display: block; }
+.diff .h { color: var(--text-muted); display: block; }
+.finding { border-left: 3px solid var(--c); padding: 6px 10px; margin: 8px 0; background: var(--surface-2); border-radius: 0 8px 8px 0; }
+
+/* Modale widget */
+dialog { border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); color: var(--text-primary); padding: 20px; width: min(560px, 94vw); }
+dialog::backdrop { background: rgba(0,0,0,.35); }
+.form { display: grid; grid-template-columns: 140px 1fr; gap: 10px 12px; align-items: center; }
+.form label { color: var(--text-secondary); font-size: 13px; }
+.edit-bar { display: flex; gap: 4px; }
+.editing .card { outline: 1px dashed var(--axis); }
+
+/* Git-flow */
+.gf { display: grid; grid-template-columns: auto 1fr; align-items: start; }
+.gf-rows { min-width: 0; }
+.gf-row {
+  display: grid; grid-template-columns: 90px minmax(160px, 260px) 1fr 140px 120px 80px; gap: 10px;
+  align-items: center; font-size: 12.5px; border-bottom: 1px solid transparent; padding-right: 6px;
+}
+.gf-row:hover { background: var(--hover); }
+.gf-row.dim { opacity: .28; }
+.gf-row.inds { cursor: pointer; }
+.gf-head { color: var(--text-muted); font-size: 11px; font-weight: 600; }
+.gf svg .node.dim, .gf svg path.dim { opacity: .22; }
+.tag { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--axis); margin-right: 4px; }
+.chk { display: inline-flex; align-items: center; gap: 5px; margin-right: 12px; font-size: 13px; cursor: pointer; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.sr { position: absolute; left: -9999px; }
+</style>
+</head>
+<body>
+<nav id="side" aria-label="Navigazione">
+  <div class="brand">Daily Review</div>
+  <div class="brand-sub">Portale locale · dati riservati</div>
+  <div class="nav-group">Analisi</div>
+  <a class="nav" data-r="dashboard" href="#/dashboard/default"><span class="ico">▦</span>Dashboard</a>
+  <div id="dash-links"></div>
+  <a class="nav" data-r="reports" href="#/reports"><span class="ico">🗓</span>Report giornalieri</a>
+  <a class="nav" data-r="commits" href="#/commits"><span class="ico">≡</span>Storico commit</a>
+  <a class="nav" data-r="authors" href="#/authors"><span class="ico">👤</span>Autori</a>
+  <div class="nav-group">Repository</div>
+  <a class="nav" data-r="gitflow" href="#/gitflow"><span class="ico">⑂</span>Git-flow</a>
+  <a class="nav" data-r="releases" href="#/releases"><span class="ico">⚑</span>Rilasci</a>
+  <div class="nav-group">Knowledge base</div>
+  <a class="nav" data-r="kb" href="#/kb"><span class="ico">✎</span>Suggestion KB</a>
+</nav>
+
+<header id="top">
+  <div class="title" id="page-title">Dashboard</div>
+  <div id="global-filters" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <div class="seg" id="range-seg" role="group" aria-label="Periodo"></div>
+    <input class="ctl" type="date" id="f-from" aria-label="Dal">
+    <input class="ctl" type="date" id="f-to" aria-label="Al">
+    <select class="ctl" id="f-repo" aria-label="Repository"></select>
+    <select class="ctl" id="f-author" aria-label="Autore"></select>
+  </div>
+  <button class="btn ghost" id="theme-btn" title="Tema chiaro/scuro">◐</button>
+</header>
+
+<main id="main"><div class="empty">Caricamento…</div></main>
+
+<div id="tip" role="tooltip"></div>
+<div id="drawer-bg"></div>
+<aside id="drawer" aria-label="Dettaglio commit"></aside>
+<dialog id="wdlg"></dialog>
+
+<script>
+"use strict";
+// ═════════════════════════════════════════════════════════════
+//  STATO & UTILITÀ
+// ═════════════════════════════════════════════════════════════
+const S = { data: null, commits: [], days: [], repos: [], dashboards: [], editing: false,
+  f: { range: "all", from: "", to: "", repo: "", author: "" }, kb: null };
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtN = (v, d = 0) => v == null || Number.isNaN(v) ? "—" : Number(v).toLocaleString("it-IT", { minimumFractionDigits: d, maximumFractionDigits: d });
+const MESI = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"];
+const GIORNI = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+const dm = s => `${s.slice(8, 10)}/${s.slice(5, 7)}`;
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const parseDay = s => new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+const addDays = (s, n) => { const d = parseDay(s); d.setDate(d.getDate() + n); return iso(d); };
+const weekKey = s => { const d = parseDay(s.slice(0, 10)); const wd = (d.getDay() + 6) % 7; d.setDate(d.getDate() - wd); return iso(d); };
+const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+const uid = () => Math.random().toString(36).slice(2, 10);
+
+const SEV = ["critical", "error", "warning", "info"];
+const SEV_META = {
+  critical: { label: "Critical", icon: "⛔", color: "var(--status-critical)" },
+  error: { label: "Error", icon: "✖", color: "var(--status-serious)" },
+  warning: { label: "Warning", icon: "▲", color: "var(--status-warning)" },
+  info: { label: "Info", icon: "ℹ", color: "var(--text-muted)" },
+  clean: { label: "Pulito", icon: "✓", color: "var(--status-good)" },
+};
+const sevChip = s => `<span class="sev ${s}">${SEV_META[s]?.icon || ""} ${SEV_META[s]?.label || s}</span>`;
+
+// Famiglie di branch: slot categorici in ordine fisso (il colore segue l'entità).
+const FAMILIES = ["main", "develop", "release", "hotfix", "feature", "bugfix", "other"];
+const FAM_LABEL = { main: "main/master", develop: "develop", release: "release", hotfix: "hotfix", feature: "feature", bugfix: "bugfix/fix", other: "altro" };
+const FAM_COLOR = { main: "var(--s1)", develop: "var(--s2)", release: "var(--s3)", hotfix: "var(--s8)", feature: "var(--s7)", bugfix: "var(--s6)", other: "var(--text-muted)" };
+function family(b) {
+  let n = (b || "").toLowerCase().replace(/^origin\//, "");
+  if (n === "main" || n === "master") return "main";
+  if (["develop", "development", "dev"].includes(n)) return "develop";
+  for (const f of ["release", "hotfix"]) if (n.startsWith(f) || n.includes("/" + f)) return f;
+  for (const f of ["feature", "bugfix"]) if (n.startsWith(f)) return f;
+  if (n.startsWith("fix")) return "bugfix";
+  return "other";
+}
+const SERIES = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)", "var(--s6)", "var(--s7)", "var(--s8)"];
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error(`${r.status} ${path}`);
+  return r.json();
+}
+
+// ═════════════════════════════════════════════════════════════
+//  MOTORE DI AGGREGAZIONE
+// ═════════════════════════════════════════════════════════════
+const DIMS = {
+  day: { label: "Giorno", time: "day", key: c => [c.date.slice(0, 10)] },
+  week: { label: "Settimana", time: "week", key: c => [weekKey(c.date)] },
+  month: { label: "Mese", time: "month", key: c => [c.date.slice(0, 7)] },
+  author: { label: "Autore", key: c => [c.author || "?"] },
+  repo: { label: "Repository", key: c => [c.repo] },
+  branch: { label: "Branch", key: c => [c.branch || "?"] },
+  family: { label: "Tipo branch", key: c => [family(c.branch)], fmt: k => FAM_LABEL[k] || k, color: k => FAM_COLOR[k] },
+  weekday: { label: "Giorno della settimana", key: c => [(parseDay(c.date).getDay() + 6) % 7], fmt: k => GIORNI[k], order: "key" },
+  hour: { label: "Ora del giorno", key: c => [+c.date.slice(11, 13)], fmt: k => `${k}:00`, order: "key" },
+  severity: { label: "Severità finding", unit: "finding", key: f => [f.severity], fmt: k => SEV_META[k] ? `${SEV_META[k].icon} ${SEV_META[k].label}` : k, color: k => SEV_META[k]?.color, order: k => SEV.indexOf(k) },
+  gate: { label: "Gate / regola", unit: "finding", key: f => [f.rule_id || "?"] },
+  directory: { label: "Directory", unit: "file", key: c => [...new Set((c.files || []).map(dirOf))] },
+  file: { label: "File", unit: "file", key: c => [...new Set(c.files || [])] },
+  quality_band: { label: "Fascia quality", key: c => c.quality == null ? [] : [c.quality >= 9 ? "9–10" : c.quality >= 7 ? "7–8" : c.quality >= 5 ? "5–6" : "1–4"], order: "key" },
+};
+function dirOf(p) { const parts = p.split("/"); parts.pop(); return parts.slice(0, 3).join("/") || "/"; }
+
+const METRICS = {
+  commits: { label: "Commit", f: g => g.commits.length },
+  quality: { label: "Quality media", dec: 1, max: 10, f: g => avg(g.commits.map(c => c.quality).filter(q => q != null)) },
+  findings: { label: "Finding", f: g => g.findings.length },
+  blocking: { label: "Finding critical+error", f: g => g.findings.filter(f => f.severity === "critical" || f.severity === "error").length },
+  churn: { label: "Righe modificate (+/−)", f: g => g.commits.reduce((s, c) => s + c.ins + c.del, 0) },
+  ins: { label: "Righe aggiunte", f: g => g.commits.reduce((s, c) => s + c.ins, 0) },
+  del: { label: "Righe rimosse", f: g => g.commits.reduce((s, c) => s + c.del, 0) },
+  files: { label: "File toccati", f: g => g.commits.reduce((s, c) => s + c.files_changed, 0) },
+  reviewed: { label: "% commit revisionati", dec: 0, max: 100, suffix: "%", f: g => g.commits.length ? 100 * g.commits.filter(c => c.reviewed).length / g.commits.length : null },
+  authors: { label: "Autori attivi", f: g => new Set(g.commits.map(c => c.author)).size },
+  avg_size: { label: "Righe per commit (media)", f: g => avg(g.commits.map(c => c.ins + c.del)) },
+};
+
+/** Raggruppa commit per dimensione. Le dimensioni "finding" esplodono i finding. */
+function group(commits, dimKey) {
+  const dim = DIMS[dimKey];
+  const m = new Map();
+  const get = k => { if (!m.has(k)) m.set(k, { key: k, commits: [], findings: [], _seen: new Set() }); return m.get(k); };
+  for (const c of commits) {
+    if (dim.unit === "finding") {
+      for (const f of c.findings) for (const k of dim.key(f)) {
+        const g = get(k); g.findings.push({ ...f, _c: c });
+        if (!g._seen.has(c.id)) { g._seen.add(c.id); g.commits.push(c); }
+      }
+    } else {
+      for (const k of dim.key(c)) { const g = get(k); g.commits.push(c); g.findings.push(...c.findings.map(f => ({ ...f, _c: c }))); }
+    }
+  }
+  return m;
+}
+
+/** Bucket temporali continui (i buchi restano a zero / null, mai interpolati). */
+function timeBuckets(kind, from, to) {
+  const out = [];
+  if (!from || !to) return out;
+  if (kind === "day") for (let d = from; d <= to; d = addDays(d, 1)) out.push(d);
+  else if (kind === "week") for (let d = weekKey(from); d <= to; d = addDays(d, 7)) out.push(d);
+  else { let y = +from.slice(0, 4), mo = +from.slice(5, 7); const ey = +to.slice(0, 4), em = +to.slice(5, 7);
+    while (y < ey || (y === ey && mo <= em)) { out.push(`${y}-${String(mo).padStart(2, "0")}`); mo++; if (mo > 12) { mo = 1; y++; } } }
+  return out;
+}
+function timeLabel(kind, k) {
+  if (kind === "month") return `${MESI[+k.slice(5, 7) - 1]} ${k.slice(2, 4)}`;
+  return dm(k);
+}
+
+function aggregate(commits, dimKey, metricKey, opts = {}) {
+  const dim = DIMS[dimKey], met = METRICS[metricKey];
+  const g = group(commits, dimKey);
+  let keys;
+  if (dim.time) {
+    const [from, to] = effectiveRange(commits);
+    keys = timeBuckets(dim.time, from, to);
+  } else {
+    keys = [...g.keys()];
+  }
+  let rows = keys.map(k => {
+    const grp = g.get(k) || { key: k, commits: [], findings: [] };
+    return { key: k, label: dim.time ? timeLabel(dim.time, k) : (dim.fmt ? dim.fmt(k) : String(k)), value: met.f(grp), group: grp };
+  });
+  if (!dim.time) {
+    if (dim.order === "key") rows.sort((a, b) => (a.key > b.key ? 1 : -1));
+    else if (typeof dim.order === "function") rows.sort((a, b) => dim.order(a.key) - dim.order(b.key));
+    else rows.sort((a, b) => (b.value ?? -1) - (a.value ?? -1));
+    rows = rows.filter(r => r.value != null && (r.value !== 0 || dim.order));
+    if (opts.top && rows.length > opts.top) rows = rows.slice(0, opts.top);
+  }
+  return rows;
+}
+
+/** Serie multiple per split (stacked / multi-linea). Oltre 7 valori → "Altri". */
+function splitSeries(commits, dimKey, metricKey, splitKey) {
+  const sdim = DIMS[splitKey];
+  const totals = [...group(commits, splitKey).values()].map(g => ({ key: g.key, v: METRICS[metricKey].f(g) || 0 }));
+  if (typeof sdim.order === "function") totals.sort((a, b) => sdim.order(a.key) - sdim.order(b.key));
+  else totals.sort((a, b) => b.v - a.v);
+  let keys = totals.map(t => t.key);
+  const fixedColor = !!sdim.color;
+  let other = false;
+  if (!fixedColor && keys.length > 7) { keys = keys.slice(0, 7); other = true; }
+  // Colore stabile per entità (non per rango): indice nell'ordinamento globale del dataset.
+  const colorOf = k => sdim.color ? sdim.color(k) : SERIES[stableIndex(splitKey, k) % 8];
+  const base = aggregate(commits, dimKey, "commits");
+  const series = keys.map(k => ({ key: k, name: sdim.fmt ? sdim.fmt(k) : String(k), color: colorOf(k), values: [] }));
+  if (other) series.push({ key: "__other", name: "Altri", color: "var(--text-muted)", values: [] });
+  for (const b of base) {
+    const sub = group(b.group.commits, splitKey);
+    for (const s of series) {
+      let grp;
+      if (s.key === "__other") {
+        const rest = [...sub.entries()].filter(([k]) => !keys.includes(k));
+        grp = { commits: [...new Set(rest.flatMap(([, g]) => g.commits))], findings: rest.flatMap(([, g]) => g.findings) };
+      } else grp = sub.get(s.key) || { commits: [], findings: [] };
+      s.values.push(METRICS[metricKey].f(grp));
+    }
+  }
+  return { buckets: base.map(b => ({ key: b.key, label: b.label })), series };
+}
+const _stable = {};
+function stableIndex(dimKey, k) {
+  if (!_stable[dimKey]) {
+    const all = [...group(S.commits, dimKey).values()].sort((a, b) => b.commits.length - a.commits.length || String(a.key).localeCompare(String(b.key)));
+    _stable[dimKey] = new Map(all.map((g, i) => [g.key, i]));
+  }
+  return _stable[dimKey].get(k) ?? 7;
+}
+
+// ═════════════════════════════════════════════════════════════
+//  FILTRI
+// ═════════════════════════════════════════════════════════════
+const RANGES = [["7", "7 gg"], ["30", "30 gg"], ["90", "90 gg"], ["all", "Tutto"]];
+function lastDay() { return S.days.length ? S.days[S.days.length - 1].date : iso(new Date()); }
+function firstDay() { return S.days.length ? S.days[0].date : iso(new Date()); }
+function rangeBounds() {
+  const f = S.f;
+  if (f.range === "custom") return [f.from || firstDay(), f.to || lastDay()];
+  if (f.range === "all") return [firstDay(), lastDay()];
+  const to = lastDay(); return [addDays(to, -(+f.range - 1)), to];
+}
+function effectiveRange() { return rangeBounds(); }
+function applyFilters(commits, extra = {}) {
+  const [from, to] = rangeBounds();
+  return commits.filter(c => {
+    const d = c.date.slice(0, 10);
+    if (d < from || d > to) return false;
+    const repo = extra.repo || S.f.repo, author = extra.author || S.f.author;
+    if (repo && c.repo !== repo) return false;
+    if (author && c.author !== author) return false;
+    if (extra.family && family(c.branch) !== extra.family) return false;
+    if (extra.severity && !c.findings.some(f => f.severity === extra.severity)) return false;
+    if (extra.reviewed === "yes" && !c.reviewed) return false;
+    if (extra.reviewed === "no" && c.reviewed) return false;
+    return true;
+  });
+}
+function previousPeriod(commits, extra) {
+  const [from, to] = rangeBounds();
+  const n = Math.round((parseDay(to) - parseDay(from)) / 864e5) + 1;
+  const pf = addDays(from, -n), pt = addDays(from, -1);
+  return S.commits.filter(c => { const d = c.date.slice(0, 10); return d >= pf && d <= pt; })
+    .filter(c => (!(extra.repo || S.f.repo) || c.repo === (extra.repo || S.f.repo)) && (!(extra.author || S.f.author) || c.author === (extra.author || S.f.author)));
+}
+function initFilters() {
+  $("#range-seg").innerHTML = RANGES.map(([k, l]) => `<button data-k="${k}">${l}</button>`).join("");
+  $("#range-seg").onclick = e => { const k = e.target.dataset.k; if (!k) return; S.f.range = k; syncFilters(); rerender(); };
+  const repos = [...new Set(S.commits.map(c => c.repo))].sort();
+  $("#f-repo").innerHTML = `<option value="">Tutti i repository</option>` + repos.map(r => `<option>${esc(r)}</option>`).join("");
+  const authors = [...new Set(S.commits.map(c => c.author))].sort();
+  $("#f-author").innerHTML = `<option value="">Tutti gli autori</option>` + authors.map(a => `<option>${esc(a)}</option>`).join("");
+  $("#f-repo").onchange = e => { S.f.repo = e.target.value; rerender(); };
+  $("#f-author").onchange = e => { S.f.author = e.target.value; rerender(); };
+  $("#f-from").onchange = e => { S.f.range = "custom"; S.f.from = e.target.value; syncFilters(); rerender(); };
+  $("#f-to").onchange = e => { S.f.range = "custom"; S.f.to = e.target.value; syncFilters(); rerender(); };
+  syncFilters();
+}
+function syncFilters() {
+  $$("#range-seg button").forEach(b => b.classList.toggle("on", b.dataset.k === S.f.range));
+  const [from, to] = rangeBounds();
+  $("#f-from").value = from; $("#f-to").value = to;
+  $("#f-repo").value = S.f.repo; $("#f-author").value = S.f.author;
+}
+
+// ═════════════════════════════════════════════════════════════
+//  GRAFICI SVG
+// ═════════════════════════════════════════════════════════════
+const PAD = { l: 44, r: 16, t: 14, b: 34 };
+function niceMax(v) {
+  if (v <= 0 || v == null) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  for (const m of [1, 2, 2.5, 5, 10]) if (v <= m * p) return m * p;
+  return 10 * p;
+}
+function ticks(max) { const m = max / Math.pow(10, Math.floor(Math.log10(max))); const n = [2.5, 5].includes(m) ? 5 : 4;
+  return Array.from({ length: n + 1 }, (_, i) => max * i / n); }
+function fmtTick(v) { return v >= 1000 ? `${fmtN(v / 1000, v % 1000 ? 1 : 0)}k` : fmtN(v, v % 1 ? 1 : 0); }
+function yAxis(W, H, max, suffix = "") {
+  return ticks(max).map(t => { const y = PAD.t + (H - PAD.t - PAD.b) * (1 - t / max);
+    return `<line class="gridline" x1="${PAD.l}" x2="${W - PAD.r}" y1="${y}" y2="${y}"/><text class="ax lbl" x="${PAD.l - 8}" y="${y + 4}" text-anchor="end">${fmtTick(t)}${suffix}</text>`; }).join("");
+}
+function xLabels(labels, x, H, bw) {
+  const maxN = Math.max(2, Math.floor((x(labels.length - 1) - x(0) + bw) / 46));
+  const step = Math.max(1, Math.ceil(labels.length / maxN));
+  return labels.map((l, i) => i % step === 0 || i === labels.length - 1 && labels.length < 4 ? `<text class="ax lbl" x="${x(i)}" y="${H - PAD.b + 16}" text-anchor="middle">${esc(l)}</text>` : "").join("");
+}
+function tipAttr(html) { return `data-tip="${esc(html)}"`; }
+function tipRows(title, rows) { return `<b>${esc(title)}</b>` + rows.map(([k, v, c]) => `<div class="row"><span>${c ? `<span class="sw" style="display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:${c}"></span>` : ""}${esc(k)}</span><span>${esc(v)}</span></div>`).join(""); }
+function colPath(x, y, w, h, r = 4) {
+  if (h <= 0) return ""; r = Math.min(r, w / 2, h);
+  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+}
+function hbarPath(x, y, w, h, r = 4) {
+  if (w <= 0) return ""; r = Math.min(r, h / 2, w);
+  return `M${x},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h - r}Q${x + w},${y + h} ${x + w - r},${y + h}H${x}Z`;
+}
+function legendHTML(series) {
+  if (series.length < 2) return "";
+  return `<div class="legend">${series.map(s => `<span><span class="sw" style="background:${s.color}"></span>${esc(s.name)}</span>`).join("")}</div>`;
+}
+
+/** Linea (1+ serie) con crosshair a banda. I null spezzano la linea. */
+function lineChart(el, buckets, series, met) {
+  const W = Math.max(320, el.clientWidth), H = 240;
+  const n = buckets.length;
+  if (!n) return el.innerHTML = `<div class="empty">Nessun dato nel periodo</div>`;
+  const vals = series.flatMap(s => s.values).filter(v => v != null);
+  const max = met.max && vals.length && Math.max(...vals) > met.max * 0.5 ? met.max : niceMax(Math.max(0, ...vals));
+  const iw = W - PAD.l - PAD.r, bw = iw / n;
+  const x = i => PAD.l + bw * i + bw / 2, y = v => PAD.t + (H - PAD.t - PAD.b) * (1 - v / max);
+  let svg = yAxis(W, H, max, met.suffix || "") + `<line class="baseline" x1="${PAD.l}" x2="${W - PAD.r}" y1="${H - PAD.b}" y2="${H - PAD.b}"/>`;
+  for (const s of series) {
+    let d = "", pen = false;
+    s.values.forEach((v, i) => { if (v == null) { pen = false; return; } d += `${pen ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`; pen = true; });
+    svg += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    s.values.forEach((v, i) => {
+      const isolated = v != null && (i === 0 || s.values[i - 1] == null) && (i === n - 1 || s.values[i + 1] == null);
+      if (v != null && (n <= 40 || isolated)) svg += `<circle cx="${x(i)}" cy="${y(v)}" r="${n <= 40 ? 3.5 : 4}" fill="${s.color}" stroke="var(--surface-1)" stroke-width="2"/>`;
+    });
+  }
+  // Etichette dirette sull'ultimo valore (≤ 4 serie), distanziate per non sovrapporsi.
+  if (series.length <= 4) {
+    const labs = series.map(s => { const li = s.values.map((v, i) => v != null ? i : -1).filter(i => i >= 0).pop();
+      return li == null ? null : { x: x(li), y: y(s.values[li]) - 7, t: `${fmtN(s.values[li], met.dec || 0)}${met.suffix || ""}` }; }).filter(Boolean)
+      .sort((a, b) => a.y - b.y);
+    for (let k = 1; k < labs.length; k++) if (Math.abs(labs[k].x - labs[k - 1].x) < 40 && labs[k].y - labs[k - 1].y < 13) labs[k].y = labs[k - 1].y + 13;
+    for (const l of labs) svg += `<text class="dlabel" x="${Math.min(l.x + 6, W - 2)}" y="${l.y}" text-anchor="${l.x > W - 60 ? "end" : "start"}">${l.t}</text>`;
+  }
+  buckets.forEach((b, i) => {
+    const rows = series.map(s => [s.name, s.values[i] == null ? "n/d" : fmtN(s.values[i], met.dec || 0) + (met.suffix || ""), series.length > 1 ? s.color : null]);
+    svg += `<g class="band" ${tipAttr(tipRows(b.label, series.length > 1 ? rows : [[met.label, rows[0][1]]]))}><rect class="bandbg" x="${PAD.l + bw * i}" y="${PAD.t}" width="${bw}" height="${H - PAD.t - PAD.b}" fill="transparent"/><line class="guide" x1="${x(i)}" x2="${x(i)}" y1="${PAD.t}" y2="${H - PAD.b}"/></g>`;
+  });
+  svg += xLabels(buckets.map(b => b.label), x, H, bw);
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(met.label)}">${svg}</svg>` + legendHTML(series);
+}
+
+/** Colonne singole o impilate (gap 2px tra segmenti). */
+function columnChart(el, buckets, series, met, stacked) {
+  const W = Math.max(320, el.clientWidth), H = 240, n = buckets.length;
+  if (!n) return el.innerHTML = `<div class="empty">Nessun dato nel periodo</div>`;
+  const totals = buckets.map((_, i) => series.reduce((s, se) => s + (se.values[i] || 0), 0));
+  const max = niceMax(Math.max(0, ...(stacked ? totals : series.flatMap(s => s.values.map(v => v || 0)))));
+  const iw = W - PAD.l - PAD.r, slot = iw / n, bw = Math.max(2, Math.min(28, slot * 0.7));
+  const x = i => PAD.l + slot * i + slot / 2;
+  const sy = v => (H - PAD.t - PAD.b) * (v / max);
+  let svg = yAxis(W, H, max, met.suffix || "");
+  buckets.forEach((b, i) => {
+    let base = H - PAD.b;
+    const segs = stacked ? series : [series[0]];
+    const visible = segs.filter(s => (s.values[i] || 0) > 0);
+    visible.forEach((s, j) => {
+      const v = s.values[i] || 0, h = sy(v); const top = j === visible.length - 1;
+      const gap = j > 0 ? 2 : 0;
+      svg += top ? `<path d="${colPath(x(i) - bw / 2, base - h + gap, bw, h - gap)}" fill="${s.color}"/>`
+        : `<rect x="${x(i) - bw / 2}" y="${base - h + gap}" width="${bw}" height="${Math.max(0, h - gap)}" fill="${s.color}"/>`;
+      base -= h;
+    });
+    const rows = stacked ? series.map(s => [s.name, fmtN(s.values[i] || 0, met.dec || 0), s.color]).concat(series.length > 1 ? [["Totale", fmtN(totals[i], met.dec || 0)]] : []) : [[met.label, fmtN(series[0].values[i], met.dec || 0) + (met.suffix || "")]];
+    svg += `<g class="band" ${tipAttr(tipRows(b.label, rows))}><rect class="bandbg" x="${PAD.l + slot * i}" y="${PAD.t}" width="${slot}" height="${H - PAD.t - PAD.b}" fill="transparent"/></g>`;
+  });
+  svg += `<line class="baseline" x1="${PAD.l}" x2="${W - PAD.r}" y1="${H - PAD.b}" y2="${H - PAD.b}"/>`;
+  svg += xLabels(buckets.map(b => b.label), x, H, slot);
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(met.label)}">${svg}</svg>` + legendHTML(stacked ? series : []);
+}
+
+/** Barre orizzontali con etichetta di valore a fine barra. */
+function hbarChart(el, rows, met, colorFn) {
+  const W = Math.max(320, el.clientWidth);
+  if (!rows.length) return el.innerHTML = `<div class="empty">Nessun dato nel periodo</div>`;
+  const RH = 26, labelW = Math.min(220, Math.max(90, W * 0.34)), H = rows.length * RH + 6;
+  const max = met.max || niceMax(Math.max(...rows.map(r => r.value || 0)));
+  const iw = W - labelW - 56;
+  let svg = "";
+  rows.forEach((r, i) => {
+    const y = i * RH + 4, w = iw * ((r.value || 0) / max);
+    const maxCh = Math.floor((labelW - 12) / 6.4), raw = r.label === "/" ? "(root)" : r.label;
+    const lab = raw.length > maxCh ? "…" + raw.slice(-(maxCh - 1)) : raw;
+    svg += `<g class="band" ${tipAttr(tipRows(r.label, [[met.label, fmtN(r.value, met.dec || 0) + (met.suffix || "")], ["Commit", fmtN(r.group.commits.length)]]))}>
+      <rect class="bandbg" x="0" y="${y - 2}" width="${W}" height="${RH}" fill="transparent"/>
+      <text class="lbl" x="${labelW - 8}" y="${y + 14}" text-anchor="end" style="fill:var(--text-secondary);font-size:12px">${esc(lab)}</text>
+      <path d="${hbarPath(labelW, y + 3, Math.max(w, 1), 16)}" fill="${colorFn ? colorFn(r.key) : "var(--s1)"}"/>
+      <text class="dlabel" x="${labelW + Math.max(w, 1) + 6}" y="${y + 15}">${fmtN(r.value, met.dec || 0)}${met.suffix || ""}</text></g>`;
+  });
+  svg += `<line class="baseline" x1="${labelW}" x2="${labelW}" y1="0" y2="${H}"/>`;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(met.label)}">${svg}</svg>`;
+}
+
+/** Heatmap giorno×ora, rampa sequenziale a una tinta. */
+function heatmap(el, commits, metKey) {
+  const met = METRICS[metKey];
+  const W = Math.max(320, el.clientWidth), lw = 38, cols = 24, rowsN = 7;
+  const cw = (W - lw - 8) / cols, ch = Math.min(26, Math.max(16, cw)), H = rowsN * ch + 24;
+  const cells = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => ({ commits: [], findings: [] })));
+  for (const c of commits) { const wd = (parseDay(c.date).getDay() + 6) % 7, h = +c.date.slice(11, 13); cells[wd][h].commits.push(c); cells[wd][h].findings.push(...c.findings); }
+  const vals = cells.flat().map(g => met.f(g) || 0), max = Math.max(1, ...vals);
+  const ramp = ["var(--q100)", "var(--q200)", "var(--q300)", "var(--q400)", "var(--q500)", "var(--q600)", "var(--q700)"];
+  let svg = "";
+  cells.forEach((row, d) => {
+    svg += `<text class="lbl" x="${lw - 6}" y="${d * ch + ch / 2 + 4}" text-anchor="end">${GIORNI[d]}</text>`;
+    row.forEach((g, h) => {
+      const v = met.f(g) || 0;
+      const fill = v === 0 ? "var(--surface-2)" : ramp[Math.min(6, Math.floor((v / max) * 6.999))];
+      svg += `<rect x="${lw + h * cw + 1}" y="${d * ch + 1}" width="${cw - 2}" height="${ch - 2}" rx="3" fill="${fill}" ${tipAttr(tipRows(`${GIORNI[d]} ${h}:00–${h + 1}:00`, [[met.label, fmtN(v, met.dec || 0)]]))}/>`;
+    });
+  });
+  for (let h = 0; h < 24; h += 3) svg += `<text class="lbl" x="${lw + h * cw + cw / 2}" y="${rowsN * ch + 16}" text-anchor="middle">${h}</text>`;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Heatmap ${esc(met.label)}">${svg}</svg>
+    <div class="legend"><span>meno</span>${ramp.map(c => `<span class="sw" style="background:${c};margin:0"></span>`).join("")}<span>più (max ${fmtN(max, met.dec || 0)})</span></div>`;
+}
+
+function tableFromRows(headers, rows) {
+  return `<div class="scroll"><table class="t"><thead><tr>${headers.map(h => `<th class="${h.n ? "n" : ""}">${esc(h.l)}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${r.map((c, i) => `<td class="${headers[i].n ? "n" : ""}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+
+// Tooltip globale (delegato su data-tip)
+document.addEventListener("mousemove", e => {
+  const t = e.target.closest?.("[data-tip]"), tip = $("#tip");
+  if (!t) { tip.style.display = "none"; return; }
+  tip.innerHTML = t.getAttribute("data-tip"); tip.style.display = "block";
+  const r = tip.getBoundingClientRect();
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+});
+
+// ═════════════════════════════════════════════════════════════
+//  WIDGET
+// ═════════════════════════════════════════════════════════════
+const WTYPES = {
+  kpi: "Numero (KPI)", line: "Linea nel tempo", column: "Colonne nel tempo", stacked: "Colonne impilate nel tempo",
+  hbar: "Barre orizzontali (classifica)", heatmap: "Heatmap giorno × ora", commits: "Tabella commit", findings: "Tabella finding",
+};
+const TIME_DIMS = ["day", "week", "month"];
+const CAT_DIMS = Object.keys(DIMS).filter(k => !DIMS[k].time);
+
+function renderWidget(w, host) {
+  const extra = w.filters || {};
+  const commits = applyFilters(S.commits, extra);
+  const met = METRICS[w.metric] || METRICS.commits;
+  const body = $(".chart", host);
+  const tbl = host.dataset.table === "1";
+  if (w.type === "kpi") {
+    const v = met.f({ commits, findings: commits.flatMap(c => c.findings) });
+    let delta = "";
+    if (S.f.range !== "all") {
+      const prev = previousPeriod(commits, extra);
+      const pv = met.f({ commits: prev, findings: prev.flatMap(c => c.findings) });
+      if (v != null && pv != null && prev.length) {
+        const diff = v - pv, good = w.metric === "blocking" || w.metric === "findings" ? diff < 0 : diff > 0;
+        delta = diff === 0 ? `<div class="d">= periodo precedente</div>` :
+          `<div class="d"><span class="${good ? "up" : "down"}">${diff > 0 ? "▲" : "▼"} ${fmtN(Math.abs(diff), met.dec || 0)}${met.suffix || ""}</span> vs periodo precedente</div>`;
+      } else delta = `<div class="d">periodo precedente: nessun dato</div>`;
+    }
+    body.innerHTML = `<div class="kpi"><div class="v">${fmtN(v, met.dec || 0)}${v != null ? (met.suffix || "") : ""}${w.metric === "quality" && v != null ? `<span class="muted" style="font-size:15px;font-weight:400">/10</span>` : ""}</div>${delta}</div>`;
+    return;
+  }
+  if (w.type === "commits" || w.type === "findings") return renderTableWidget(w, body, commits);
+  if (w.type === "heatmap") return tbl ? body.innerHTML = heatTable(commits, w.metric) : heatmap(body, commits, w.metric);
+  if (w.type === "hbar") {
+    const rows = aggregate(commits, w.dim || "author", w.metric, { top: w.top || 10 });
+    const colorFn = DIMS[w.dim]?.color;
+    if (tbl) return body.innerHTML = tableFromRows([{ l: DIMS[w.dim].label }, { l: met.label, n: 1 }, { l: "Commit", n: 1 }], rows.map(r => [esc(r.label), fmtN(r.value, met.dec || 0), fmtN(r.group.commits.length)]));
+    return hbarChart(body, rows, met, colorFn);
+  }
+  const dim = TIME_DIMS.includes(w.dim) ? w.dim : "week";
+  let buckets, series;
+  if (w.split) ({ buckets, series } = splitSeries(commits, dim, w.metric, w.split));
+  else { const rows = aggregate(commits, dim, w.metric); buckets = rows; series = [{ name: met.label, color: "var(--s1)", values: rows.map(r => r.value) }]; }
+  if (tbl) return body.innerHTML = tableFromRows([{ l: DIMS[dim].label }, ...series.map(s => ({ l: s.name, n: 1 }))], buckets.map((b, i) => [esc(b.label), ...series.map(s => fmtN(s.values[i], met.dec || 0))]));
+  if (w.type === "line") lineChart(body, buckets, series, met);
+  else columnChart(body, buckets, series, met, w.type === "stacked");
+}
+function heatTable(commits, metKey) {
+  const rows = aggregate(commits, "weekday", metKey).map(r => [esc(r.label), fmtN(r.value, METRICS[metKey].dec || 0)]);
+  return tableFromRows([{ l: "Giorno" }, { l: METRICS[metKey].label, n: 1 }], rows);
+}
+function renderTableWidget(w, body, commits) {
+  if (w.type === "commits") {
+    let cs = [...commits].sort((a, b) => b.date.localeCompare(a.date));
+    if (w.sort === "worst") cs.sort((a, b) => sevRank(a.worst) - sevRank(b.worst) || b.date.localeCompare(a.date));
+    cs = cs.slice(0, w.top || 10);
+    if (!cs.length) return body.innerHTML = `<div class="empty">Nessun commit nel periodo</div>`;
+    body.innerHTML = `<div class="scroll" style="max-height:420px"><table class="t"><thead><tr><th>Data</th><th>Commit</th><th>Autore</th><th class="n">Q</th><th>Esito</th></tr></thead><tbody>${cs.map(c => `<tr class="click" data-cid="${esc(c.id)}"><td class="muted">${dm(c.date)}</td><td><span class="mono">${esc(c.short)}</span> <span class="ellip" style="display:inline-block;vertical-align:bottom;max-width:260px">${esc(c.message)}</span></td><td>${esc(c.author)}</td><td class="n">${c.quality ?? "—"}</td><td>${c.reviewed ? sevChip(c.worst) : `<span class="muted">non revisionato</span>`}</td></tr>`).join("")}</tbody></table></div>`;
+  } else {
+    let fs = commits.flatMap(c => c.findings.map(f => ({ ...f, _c: c })));
+    const minSev = w.minSeverity || "info";
+    fs = fs.filter(f => sevRank(f.severity) <= sevRank(minSev)).sort((a, b) => sevRank(a.severity) - sevRank(b.severity) || b._c.date.localeCompare(a._c.date)).slice(0, w.top || 10);
+    if (!fs.length) return body.innerHTML = `<div class="empty">Nessun finding ${minSev !== "info" ? "≥ " + SEV_META[minSev].label : ""} nel periodo ✓</div>`;
+    body.innerHTML = `<div class="scroll" style="max-height:420px"><table class="t"><thead><tr><th>Severità</th><th>Gate</th><th>Messaggio</th><th>Autore</th><th>Data</th></tr></thead><tbody>${fs.map(f => `<tr class="click" data-cid="${esc(f._c.id)}"><td>${sevChip(f.severity)}</td><td class="mono" style="white-space:nowrap">${esc(f.rule_id)}</td><td><div>${esc(f.message)}</div>${f.file ? `<div class="muted mono">${esc(f.file)}</div>` : ""}</td><td>${esc(f._c.author)}</td><td class="muted">${dm(f._c.date)}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+}
+const sevRank = s => s === "clean" ? 9 : SEV.indexOf(s) < 0 ? 8 : SEV.indexOf(s);
+
+function widgetSubtitle(w) {
+  const parts = [];
+  if (w.type === "kpi" && (METRICS[w.metric]?.label || "").toLowerCase() === (w.title || "").toLowerCase() && !Object.values(w.filters || {}).some(Boolean)) return "";
+  if (w.type !== "commits" && w.type !== "findings") parts.push(METRICS[w.metric]?.label);
+  if (w.dim && DIMS[w.dim] && w.type !== "kpi" && w.type !== "heatmap") parts.push("per " + DIMS[w.dim].label.toLowerCase());
+  if (w.split) parts.push("suddiviso per " + DIMS[w.split].label.toLowerCase());
+  const f = w.filters || {};
+  if (f.repo) parts.push(f.repo); if (f.author) parts.push(f.author); if (f.family) parts.push("branch " + FAM_LABEL[f.family]);
+  if (f.severity) parts.push("con finding " + SEV_META[f.severity].label);
+  return parts.filter(Boolean).join(" · ");
+}
+
+// ═════════════════════════════════════════════════════════════
+//  DASHBOARD (default + personalizzate)
+// ═════════════════════════════════════════════════════════════
+const DEFAULT_DASH = {
+  id: "default", name: "Panoramica reviewer", builtin: true, widgets: [
+    { id: "k1", type: "kpi", title: "Commit", metric: "commits", w: 3 },
+    { id: "k2", type: "kpi", title: "Quality media", metric: "quality", w: 3 },
+    { id: "k3", type: "kpi", title: "Finding critical + error", metric: "blocking", w: 3 },
+    { id: "k4", type: "kpi", title: "Commit revisionati", metric: "reviewed", w: 3 },
+    { id: "c1", type: "line", title: "Andamento quality", metric: "quality", dim: "week", w: 6 },
+    { id: "c2", type: "stacked", title: "Commit rilasciati per tipo di branch", metric: "commits", dim: "week", split: "family", w: 6 },
+    { id: "c3", type: "stacked", title: "Finding per severità", metric: "findings", dim: "week", split: "severity", w: 6 },
+    { id: "c4", type: "hbar", title: "Gate violati più spesso", metric: "findings", dim: "gate", top: 8, w: 6 },
+    { id: "c5", type: "hbar", title: "Quality per autore", metric: "quality", dim: "author", top: 10, w: 4 },
+    { id: "c6", type: "hbar", title: "Hotspot: directory più toccate", metric: "commits", dim: "directory", top: 10, w: 4 },
+    { id: "c7", type: "column", title: "Volume di codice modificato", metric: "churn", dim: "week", w: 4 },
+    { id: "c8", type: "heatmap", title: "Quando si committa", metric: "commits", w: 6 },
+    { id: "c9", type: "findings", title: "Finding da discutere", minSeverity: "warning", top: 8, w: 6 },
+  ],
+};
+const TEMPLATES = {
+  blank: { name: "Nuova dashboard", widgets: [] },
+  mentoring: { name: "Mentoring autori", widgets: [
+    { type: "hbar", title: "Commit per autore", metric: "commits", dim: "author", top: 12, w: 6 },
+    { type: "hbar", title: "Finding per autore", metric: "findings", dim: "author", top: 12, w: 6 },
+    { type: "line", title: "Quality per autore nel tempo", metric: "quality", dim: "week", split: "author", w: 12 },
+    { type: "hbar", title: "Righe per commit (dimensione media)", metric: "avg_size", dim: "author", top: 12, w: 6 },
+    { type: "hbar", title: "Gate ricorrenti", metric: "findings", dim: "gate", top: 10, w: 6 },
+  ] },
+  release: { name: "Rilasci e stabilità", widgets: [
+    { type: "kpi", title: "Commit su release/hotfix", metric: "commits", filters: { family: "release" }, w: 3 },
+    { type: "kpi", title: "Commit hotfix", metric: "commits", filters: { family: "hotfix" }, w: 3 },
+    { type: "kpi", title: "Righe modificate", metric: "churn", w: 3 },
+    { type: "kpi", title: "Autori attivi", metric: "authors", w: 3 },
+    { type: "stacked", title: "Righe modificate per repository", metric: "churn", dim: "week", split: "repo", w: 12 },
+    { type: "hbar", title: "Branch più attivi", metric: "commits", dim: "branch", top: 12, w: 6 },
+    { type: "hbar", title: "File più modificati", metric: "commits", dim: "file", top: 12, w: 6 },
+  ] },
+};
+
+function currentDash(id) { return id === "default" ? DEFAULT_DASH : S.dashboards.find(d => d.id === id); }
+function renderDashLinks(active) {
+  $("#dash-links").innerHTML = S.dashboards.map(d => `<a class="nav dash-link ${active === d.id ? "active" : ""}" href="#/dashboard/${d.id}">${esc(d.name)}</a>`).join("");
+}
+async function persistDashboards() {
+  await api("/api/dashboards", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dashboards: S.dashboards }) });
+}
+
+function viewDashboard(id) {
+  const d = currentDash(id) || DEFAULT_DASH;
+  setTitle(d.name);
+  renderDashLinks(d.id);
+  const main = $("#main");
+  main.innerHTML = `
+    <div class="toolbar">
+      <div><h1>${esc(d.name)}</h1><p class="lede" style="margin:0">${d.builtin ? "Dashboard di default: per modificarla creane una copia." : "Dashboard personalizzata."} Filtri globali in alto; ogni widget può avere filtri propri.</p></div>
+      <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+        ${d.builtin ? "" : `<button class="btn ${S.editing ? "primary" : ""}" id="d-edit">${S.editing ? "✓ Fine modifica" : "✎ Modifica"}</button>`}
+        ${S.editing && !d.builtin ? `<button class="btn" id="d-add">＋ Widget</button><button class="btn" id="d-rename">Rinomina</button><button class="btn danger" id="d-del">Elimina</button>` : ""}
+        <button class="btn" id="d-dup">⧉ Duplica</button>
+        <select class="ctl" id="d-new" aria-label="Nuova dashboard"><option value="">＋ Nuova dashboard…</option><option value="blank">Vuota</option><option value="mentoring">Da modello: Mentoring autori</option><option value="release">Da modello: Rilasci e stabilità</option></select>
+        <button class="btn" id="d-export" title="Esporta definizione JSON">⇩ Esporta</button>
+      </div>
+    </div>
+    ${coverageBanner()}
+    <div class="grid ${S.editing && !d.builtin ? "editing" : ""}" id="wgrid"></div>`;
+  const grid = $("#wgrid");
+  if (!d.widgets.length) grid.innerHTML = `<div class="card w12 empty">Dashboard vuota. Usa «Modifica» → «＋ Widget».</div>`;
+  d.widgets.forEach((w, i) => {
+    const card = document.createElement("section");
+    card.className = `card w${w.w || 6}`; card.dataset.wid = w.id;
+    card.innerHTML = `<div class="card-h"><div><div class="t">${esc(w.title || WTYPES[w.type])}</div><div class="st">${esc(widgetSubtitle(w))}</div></div>
+      <div class="tools">${["line", "column", "stacked", "hbar", "heatmap"].includes(w.type) ? `<button class="btn ghost sm" data-act="table" title="Vista tabella">▤</button>` : ""}
+      ${S.editing && !d.builtin ? `<span class="edit-bar"><button class="btn ghost sm" data-act="up" title="Sposta prima">↑</button><button class="btn ghost sm" data-act="down" title="Sposta dopo">↓</button><button class="btn ghost sm" data-act="edit" title="Configura">⚙</button><button class="btn ghost sm danger" data-act="rm" title="Rimuovi">✕</button></span>` : ""}</div></div>
+      <div class="chart"></div>`;
+    grid.appendChild(card);
+    card.addEventListener("click", async e => {
+      const act = e.target.closest("[data-act]")?.dataset.act;
+      if (!act) return;
+      if (act === "table") { card.dataset.table = card.dataset.table === "1" ? "0" : "1"; return renderWidget(w, card); }
+      if (act === "rm") d.widgets.splice(i, 1);
+      if (act === "up" && i > 0) [d.widgets[i - 1], d.widgets[i]] = [d.widgets[i], d.widgets[i - 1]];
+      if (act === "down" && i < d.widgets.length - 1) [d.widgets[i + 1], d.widgets[i]] = [d.widgets[i], d.widgets[i + 1]];
+      if (act === "edit") return openWidgetDialog(d, w);
+      await persistDashboards(); viewDashboard(d.id);
+    });
+  });
+  requestAnimationFrame(() => d.widgets.forEach(w => { const c = $(`[data-wid="${w.id}"]`); if (c) renderWidget(w, c); }));
+
+  $("#d-edit")?.addEventListener("click", () => { S.editing = !S.editing; viewDashboard(d.id); });
+  $("#d-add")?.addEventListener("click", () => openWidgetDialog(d, null));
+  $("#d-rename")?.addEventListener("click", async () => { const n = prompt("Nome della dashboard", d.name); if (n) { d.name = n.trim(); await persistDashboards(); viewDashboard(d.id); } });
+  $("#d-del")?.addEventListener("click", async () => { if (!confirm(`Eliminare la dashboard «${d.name}»?`)) return; S.dashboards = S.dashboards.filter(x => x.id !== d.id); S.editing = false; await persistDashboards(); location.hash = "#/dashboard/default"; });
+  $("#d-dup").addEventListener("click", () => createDash({ name: d.name + " (copia)", widgets: d.widgets }));
+  $("#d-new").addEventListener("change", e => { const t = TEMPLATES[e.target.value]; if (t) createDash(t); });
+  $("#d-export").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify({ name: d.name, widgets: d.widgets }, null, 2)], { type: "application/json" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `dashboard-${d.name.replace(/\W+/g, "-").toLowerCase()}.json`; a.click();
+  });
+}
+async function createDash(tpl) {
+  const d = { id: uid(), name: tpl.name, widgets: JSON.parse(JSON.stringify(tpl.widgets)).map(w => ({ ...w, id: uid() })) };
+  S.dashboards.push(d); S.editing = true; S._lastDash = d.id;
+  await persistDashboards(); location.hash = `#/dashboard/${d.id}`;
+}
+
+function openWidgetDialog(d, w) {
+  const isNew = !w;
+  w = w ? JSON.parse(JSON.stringify(w)) : { id: uid(), type: "hbar", metric: "commits", dim: "author", w: 6, top: 10, filters: {} };
+  w.filters = w.filters || {};
+  const dlg = $("#wdlg");
+  const opt = (obj, sel, keys) => (keys || Object.keys(obj)).map(k => `<option value="${k}" ${k === sel ? "selected" : ""}>${esc(obj[k].label || obj[k])}</option>`).join("");
+  const repos = [...new Set(S.commits.map(c => c.repo))].sort(), authors = [...new Set(S.commits.map(c => c.author))].sort();
+  const draw = () => {
+    const t = w.type, timeT = ["line", "column", "stacked"].includes(t);
+    dlg.innerHTML = `<form method="dialog"><h3 style="margin-top:0">${isNew ? "Nuovo widget" : "Configura widget"}</h3><div class="form">
+      <label>Titolo</label><input class="ctl" name="title" value="${esc(w.title || "")}" placeholder="${esc(WTYPES[t])}">
+      <label>Tipo</label><select class="ctl" name="type">${opt(WTYPES, t)}</select>
+      ${t === "commits" || t === "findings" ? "" : `<label>Metrica</label><select class="ctl" name="metric">${opt(METRICS, w.metric, t === "heatmap" ? ["commits", "findings", "blocking", "churn"] : null)}</select>`}
+      ${timeT ? `<label>Asse tempo</label><select class="ctl" name="dim">${opt(DIMS, TIME_DIMS.includes(w.dim) ? w.dim : "week", TIME_DIMS)}</select>
+        <label>Suddividi per</label><select class="ctl" name="split"><option value="">— nessuna —</option>${opt(DIMS, w.split, ["severity", "family", "repo", "author", "gate", "quality_band"])}</select>` : ""}
+      ${t === "hbar" ? `<label>Raggruppa per</label><select class="ctl" name="dim">${opt(DIMS, CAT_DIMS.includes(w.dim) ? w.dim : "author", CAT_DIMS)}</select>` : ""}
+      ${["hbar", "commits", "findings"].includes(t) ? `<label>Righe (top N)</label><input class="ctl" type="number" min="3" max="50" name="top" value="${w.top || 10}">` : ""}
+      ${t === "findings" ? `<label>Severità minima</label><select class="ctl" name="minSeverity">${SEV.map(s => `<option value="${s}" ${w.minSeverity === s ? "selected" : ""}>${SEV_META[s].label}</option>`).join("")}</select>` : ""}
+      ${t === "commits" ? `<label>Ordina per</label><select class="ctl" name="sort"><option value="date">Più recenti</option><option value="worst" ${w.sort === "worst" ? "selected" : ""}>Esito peggiore</option></select>` : ""}
+      <label>Larghezza</label><select class="ctl" name="w">${[[3, "¼"], [4, "⅓"], [6, "½"], [8, "⅔"], [12, "Intera"]].map(([v, l]) => `<option value="${v}" ${+w.w === v ? "selected" : ""}>${l}</option>`).join("")}</select>
+      <label style="grid-column:1/-1;font-weight:600;color:var(--text-primary);margin-top:6px">Filtri del widget (si sommano a quelli globali)</label>
+      <label>Repository</label><select class="ctl" name="f_repo"><option value="">— tutti —</option>${repos.map(r => `<option ${w.filters.repo === r ? "selected" : ""}>${esc(r)}</option>`).join("")}</select>
+      <label>Autore</label><select class="ctl" name="f_author"><option value="">— tutti —</option>${authors.map(a => `<option ${w.filters.author === a ? "selected" : ""}>${esc(a)}</option>`).join("")}</select>
+      <label>Tipo branch</label><select class="ctl" name="f_family"><option value="">— tutti —</option>${FAMILIES.map(f => `<option value="${f}" ${w.filters.family === f ? "selected" : ""}>${FAM_LABEL[f]}</option>`).join("")}</select>
+      <label>Con finding</label><select class="ctl" name="f_severity"><option value="">— qualsiasi —</option>${SEV.map(s => `<option value="${s}" ${w.filters.severity === s ? "selected" : ""}>${SEV_META[s].label}</option>`).join("")}</select>
+      </div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px"><button class="btn" value="cancel">Annulla</button><button class="btn primary" value="ok">${isNew ? "Aggiungi" : "Salva"}</button></div></form>`;
+    $("[name=type]", dlg).onchange = e => { read(); w.type = e.target.value; if (w.type === "hbar" && !CAT_DIMS.includes(w.dim)) w.dim = "author"; if (["line", "column", "stacked"].includes(w.type) && !TIME_DIMS.includes(w.dim)) w.dim = "week"; draw(); };
+  };
+  const read = () => {
+    const fd = new FormData($("form", dlg));
+    for (const k of ["title", "metric", "dim", "split", "minSeverity", "sort"]) if (fd.has(k)) w[k] = fd.get(k) || undefined;
+    if (fd.has("top")) w.top = +fd.get("top"); w.w = +fd.get("w");
+    w.filters = { repo: fd.get("f_repo") || undefined, author: fd.get("f_author") || undefined, family: fd.get("f_family") || undefined, severity: fd.get("f_severity") || undefined };
+  };
+  draw();
+  dlg.onclose = async () => {
+    if (dlg.returnValue !== "ok") return;
+    read();
+    if (isNew) d.widgets.push(w); else d.widgets[d.widgets.findIndex(x => x.id === w.id)] = w;
+    await persistDashboards(); viewDashboard(d.id);
+  };
+  dlg.returnValue = ""; dlg.showModal();
+}
+
+function coverageBanner() {
+  const [from, to] = rangeBounds();
+  const bad = S.days.filter(d => !d.fetch_ok && d.date >= from && d.date <= to);
+  const unreviewed = applyFilters(S.commits).filter(c => !c.reviewed).length;
+  const msgs = [];
+  if (bad.length) msgs.push(`⚠ Raccolta git fallita in ${bad.length} giorn${bad.length === 1 ? "o" : "i"} del periodo (${bad.map(d => dm(d.date)).join(", ")}): i dati possono essere incompleti.`);
+  if (unreviewed) msgs.push(`${unreviewed} commit raccolti ma non revisionati dall'AI.`);
+  return msgs.length ? `<div class="banner">${msgs.join(" ")}</div>` : "";
+}
+
+// ═════════════════════════════════════════════════════════════
+//  REPORT GIORNALIERI
+// ═════════════════════════════════════════════════════════════
+function viewReports() {
+  setTitle("Report giornalieri");
+  const [from, to] = rangeBounds();
+  const days = S.days.filter(d => d.date >= from && d.date <= to).reverse();
+  const byMonth = {};
+  days.forEach(d => (byMonth[d.date.slice(0, 7)] ||= []).push(d));
+  $("#main").innerHTML = `<h1>Report giornalieri</h1><p class="lede">${days.length} report nel periodo. Clicca un giorno per digest, briefing, report completo e grafici.</p>
+    <section class="card" style="margin-bottom:16px"><div class="card-h"><div><div class="t">Copertura e quality per giorno di report</div><div class="st">Commit raccolti per giorno; i giorni con raccolta fallita sono marcati ⚠</div></div><div class="tools"><button class="btn ghost sm" id="rep-tbl">▤</button></div></div><div class="chart" id="rep-chart"></div></section>
+    ${Object.entries(byMonth).map(([m, ds]) => `<h3>${MESI[+m.slice(5, 7) - 1]} ${m.slice(0, 4)}</h3><div class="days">${ds.map(dayCard).join("")}</div>`).join("")}`;
+  const draw = tbl => {
+    const el = $("#rep-chart"), asc = [...days].reverse();
+    if (tbl) return el.innerHTML = tableFromRows([{ l: "Giorno" }, { l: "Commit", n: 1 }, { l: "Quality", n: 1 }, { l: "Raccolta" }], asc.map(d => [dm(d.date), fmtN(d.commits), d.quality ?? "—", d.fetch_ok ? "ok" : "⚠ fallita"]));
+    columnChart(el, asc.map(d => ({ key: d.date, label: (d.fetch_ok ? "" : "⚠") + dm(d.date) })), [{ name: "Commit", color: "var(--s1)", values: asc.map(d => d.commits) }], METRICS.commits, false);
+  };
+  let t = false; draw(t); $("#rep-tbl").onclick = () => draw(t = !t);
+}
+function dayCard(d) {
+  return `<a class="day" href="#/reports/${d.date}"><div class="dd">${GIORNI[(parseDay(d.date).getDay() + 6) % 7]} ${dm(d.date)}</div>
+    <div class="q">${d.quality != null ? fmtN(d.quality, 1) : "—"}<span class="muted" style="font-size:12px;font-weight:400"> /10</span></div>
+    <div class="meta">${d.commits} commit · ${d.docs.includes("digest.md") ? "digest" : "no digest"}${d.docs.includes("briefing.md") ? " · briefing" : ""}</div>
+    ${d.fetch_ok ? "" : `<div class="meta" style="color:var(--text-primary)">⚠ raccolta fallita</div>`}</a>`;
+}
+async function viewDay(date) {
+  setTitle(`Report ${dm(date)}`);
+  $("#main").innerHTML = `<div class="empty">Caricamento…</div>`;
+  const doc = await api(`/api/day/${date}`);
+  const meta = S.days.find(d => d.date === date) || {};
+  const cs = S.commits.filter(c => c.day === date);
+  const findings = cs.flatMap(c => c.findings);
+  const tabs = ["digest.md", "briefing.md", "daily-summary.md"].filter(n => doc.docs[n]);
+  const label = { "digest.md": "Digest", "briefing.md": "Briefing", "daily-summary.md": "Report completo" };
+  const i = S.days.findIndex(d => d.date === date);
+  const prev = S.days[i - 1]?.date, next = S.days[i + 1]?.date;
+  $("#main").innerHTML = `
+    <div class="toolbar"><a class="btn" href="#/reports">← Tutti i report</a>${prev ? `<a class="btn" href="#/reports/${prev}">‹ ${dm(prev)}</a>` : ""}${next ? `<a class="btn" href="#/reports/${next}">${dm(next)} ›</a>` : ""}
+      <h1 style="margin:0 8px">${GIORNI[(parseDay(date).getDay() + 6) % 7]} ${dm(date)}/${date.slice(0, 4)}</h1>
+      ${doc.has_dashboard ? `<a class="btn" style="margin-left:auto" href="/reports/${date}/dashboard.html" target="_blank" rel="noopener">Apri dashboard del giorno ↗</a>` : ""}</div>
+    ${meta.fetch_ok === false ? `<div class="banner">⚠ Raccolta git fallita: ${meta.errors.map(esc).join("<br>")}</div>` : ""}
+    <div class="grid">
+      <section class="card w3"><div class="kpi"><div class="l">Commit</div><div class="v">${cs.length}</div><div class="d">${cs.filter(c => c.reviewed).length} revisionati</div></div></section>
+      <section class="card w3"><div class="kpi"><div class="l">Quality media</div><div class="v">${fmtN(meta.quality, 1)}<span class="muted" style="font-size:15px;font-weight:400">/10</span></div></div></section>
+      <section class="card w3"><div class="kpi"><div class="l">Finding</div><div class="v">${findings.length}</div><div class="d">${SEV.map(s => `${SEV_META[s].icon} ${findings.filter(f => f.severity === s).length}`).join(" · ")}</div></div></section>
+      <section class="card w3"><div class="kpi"><div class="l">Righe +/−</div><div class="v">${fmtN(cs.reduce((s, c) => s + c.ins + c.del, 0))}</div><div class="d">+${fmtN(cs.reduce((s, c) => s + c.ins, 0))} / −${fmtN(cs.reduce((s, c) => s + c.del, 0))}</div></div></section>
+      <section class="card w6"><div class="card-h"><div class="t">Quality per autore</div></div><div class="chart" id="day-auth"></div></section>
+      <section class="card w6"><div class="card-h"><div class="t">Finding per gate</div></div><div class="chart" id="day-gate"></div></section>
+      <section class="card w12"><div class="tabs" id="day-tabs">${tabs.map((t, k) => `<button data-t="${t}" class="${k ? "" : "on"}">${label[t]}</button>`).join("")}<button data-t="__commits" class="${tabs.length ? "" : "on"}">Commit (${cs.length})</button></div><div id="day-doc"></div></section>
+    </div>`;
+  hbarChart($("#day-auth"), aggregate(cs, "author", "quality"), METRICS.quality);
+  hbarChart($("#day-gate"), aggregate(cs, "gate", "findings"), METRICS.findings);
+  const show = t => {
+    $$("#day-tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
+    $("#day-doc").innerHTML = t === "__commits" ? commitTable(cs) : `<div class="md">${md(doc.docs[t])}</div>`;
+  };
+  $("#day-tabs").onclick = e => e.target.dataset.t && show(e.target.dataset.t);
+  show(tabs[0] || "__commits");
+}
+
+// ═════════════════════════════════════════════════════════════
+//  STORICO COMMIT
+// ═════════════════════════════════════════════════════════════
+const CF = { q: "", family: "", severity: "", reviewed: "", sort: "date", dir: -1, page: 0 };
+function viewCommits() {
+  setTitle("Storico commit");
+  $("#main").innerHTML = `<h1>Storico commit e review</h1><p class="lede">Ogni commit raccolto con l'esito della review. Clicca una riga per finding, file e diff.</p>
+    <div class="toolbar">
+      <input class="ctl" id="cf-q" placeholder="Cerca messaggio, hash, branch, file…" style="min-width:280px" value="${esc(CF.q)}">
+      <select class="ctl" id="cf-family"><option value="">Tutti i tipi di branch</option>${FAMILIES.map(f => `<option value="${f}" ${CF.family === f ? "selected" : ""}>${FAM_LABEL[f]}</option>`).join("")}</select>
+      <select class="ctl" id="cf-sev"><option value="">Qualsiasi esito</option>${SEV.map(s => `<option value="${s}" ${CF.severity === s ? "selected" : ""}>con ${SEV_META[s].label}</option>`).join("")}</select>
+      <select class="ctl" id="cf-rev"><option value="">Revisionati e non</option><option value="yes" ${CF.reviewed === "yes" ? "selected" : ""}>Solo revisionati</option><option value="no" ${CF.reviewed === "no" ? "selected" : ""}>Solo non revisionati</option></select>
+      <span class="muted" id="cf-count" style="margin-left:auto"></span>
+    </div><section class="card" id="cf-table"></section>`;
+  const upd = () => { CF.page = 0; drawCommits(); };
+  $("#cf-q").oninput = e => { CF.q = e.target.value; upd(); };
+  $("#cf-family").onchange = e => { CF.family = e.target.value; upd(); };
+  $("#cf-sev").onchange = e => { CF.severity = e.target.value; upd(); };
+  $("#cf-rev").onchange = e => { CF.reviewed = e.target.value; upd(); };
+  drawCommits();
+}
+function drawCommits() {
+  const q = CF.q.toLowerCase();
+  let cs = applyFilters(S.commits, { family: CF.family, severity: CF.severity, reviewed: CF.reviewed });
+  if (q) cs = cs.filter(c => [c.message, c.short, c.branch, c.author, c.repo, ...c.files].some(s => (s || "").toLowerCase().includes(q)));
+  const key = { date: c => c.date, quality: c => c.quality ?? -1, churn: c => c.ins + c.del, worst: c => -sevRank(c.worst), author: c => c.author }[CF.sort];
+  cs.sort((a, b) => (key(a) > key(b) ? 1 : key(a) < key(b) ? -1 : 0) * CF.dir);
+  $("#cf-count").textContent = `${cs.length} commit`;
+  const P = 50, pages = Math.ceil(cs.length / P);
+  $("#cf-table").innerHTML = commitTable(cs.slice(CF.page * P, CF.page * P + P), true) +
+    (pages > 1 ? `<div class="toolbar" style="margin:12px 0 0;justify-content:center">${Array.from({ length: pages }, (_, i) => `<button class="btn sm ${i === CF.page ? "primary" : ""}" data-p="${i}">${i + 1}</button>`).join("")}</div>` : "");
+  $$("#cf-table [data-p]").forEach(b => b.onclick = () => { CF.page = +b.dataset.p; drawCommits(); });
+  $$("#cf-table th[data-s]").forEach(th => th.onclick = () => { const s = th.dataset.s; CF.dir = CF.sort === s ? -CF.dir : -1; CF.sort = s; drawCommits(); });
+}
+function commitTable(cs, sortable) {
+  if (!cs.length) return `<div class="empty">Nessun commit</div>`;
+  const th = (l, s, n) => sortable && s ? `<th class="sort ${n ? "n" : ""}" data-s="${s}">${l}${CF.sort === s ? (CF.dir > 0 ? " ↑" : " ↓") : ""}</th>` : `<th class="${n ? "n" : ""}">${l}</th>`;
+  return `<div class="scroll" style="max-height:none"><table class="t"><thead><tr>${th("Data", "date")}${th("Repo")}${th("Branch")}${th("Commit")}${th("Autore", "author")}${th("+/−", "churn", 1)}${th("Quality", "quality", 1)}${th("Esito", "worst")}</tr></thead><tbody>
+  ${cs.map(c => `<tr class="click" data-cid="${esc(c.id)}"><td class="muted" style="white-space:nowrap">${dm(c.date)} ${c.date.slice(11, 16)}</td><td>${esc(c.repo)}</td>
+    <td><span class="pill fam" style="--c:${FAM_COLOR[family(c.branch)]}" title="${esc(c.branch)}">${esc(c.branch.length > 30 ? "…" + c.branch.slice(-29) : c.branch)}</span></td>
+    <td><span class="mono">${esc(c.short)}</span> ${esc(c.message)}</td><td style="white-space:nowrap">${esc(c.author)}</td>
+    <td class="n" style="white-space:nowrap">+${c.ins} −${c.del}</td><td class="n">${c.quality ?? "—"}</td>
+    <td>${c.reviewed ? sevChip(c.worst) + (c.findings.length ? ` <span class="muted">(${c.findings.length})</span>` : "") : `<span class="muted">non revisionato</span>`}</td></tr>`).join("")}
+  </tbody></table></div>`;
+}
+
+// Drawer dettaglio commit (delegato su data-cid)
+document.addEventListener("click", e => {
+  const row = e.target.closest("[data-cid]");
+  if (row) openCommit(row.dataset.cid);
+});
+$("#drawer-bg").onclick = closeDrawer;
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+function closeDrawer() { $("#drawer").style.display = $("#drawer-bg").style.display = "none"; }
+async function openCommit(id) {
+  const c = S.commits.find(x => x.id === id); if (!c) return;
+  const d = $("#drawer");
+  d.innerHTML = `<div class="toolbar"><span class="mono">${esc(c.short)}</span><span class="pill fam" style="--c:${FAM_COLOR[family(c.branch)]}">${esc(c.branch)}</span><button class="btn ghost" style="margin-left:auto" onclick="closeDrawer()">✕</button></div>
+    <h2 style="margin:0 0 6px;font-size:18px">${esc(c.message)}</h2>
+    <p class="muted" style="margin:0 0 14px">${esc(c.author)} · ${c.date.replace("T", " ")} · ${esc(c.repo)} · ${c.files_changed} file, +${c.ins} −${c.del} · report del <a href="#/reports/${c.day}" onclick="closeDrawer()">${dm(c.day)}</a></p>
+    <div class="grid" style="gap:10px;margin-bottom:12px">
+      <div class="card w4"><div class="kpi"><div class="l">Quality</div><div class="v">${c.quality ?? "—"}<span class="muted" style="font-size:14px;font-weight:400">/10</span></div></div></div>
+      <div class="card w8"><div class="kpi"><div class="l">Esito</div><div style="margin-top:6px">${c.reviewed ? sevChip(c.worst) : "non revisionato"}</div>${c.summary ? `<div class="d" style="color:var(--text-secondary)">${esc(c.summary)}</div>` : ""}</div></div>
+    </div>
+    ${c.findings.length ? `<h3>Finding (${c.findings.length})</h3>` + c.findings.map(f => `<div class="finding" style="--c:${SEV_META[f.severity]?.color}">${sevChip(f.severity)} <span class="mono">${esc(f.rule_id)}</span> — ${esc(f.message)}${f.file ? `<div class="muted mono">${esc(f.file)}${f.line ? ":" + esc(f.line) : ""}</div>` : ""}${f.suggestion ? `<div>💬 ${esc(f.suggestion)}</div>` : ""}</div>`).join("") : ""}
+    <h3>File (${c.files.length})</h3><div class="mono" style="line-height:1.8">${c.files.map(esc).join("<br>")}</div>
+    <h3>Diff</h3><div class="diff" id="dr-diff">Caricamento…</div>`;
+  d.style.display = $("#drawer-bg").style.display = "block"; d.scrollTop = 0;
+  const { diff } = await api(`/api/diff?repo=${encodeURIComponent(c.repo)}&hash=${encodeURIComponent(c.short)}`);
+  $("#dr-diff").innerHTML = diff ? diff.split("\n").map(l => `<span class="${l.startsWith("+") && !l.startsWith("+++") ? "a" : l.startsWith("-") && !l.startsWith("---") ? "r" : l.startsWith("@@") || l.startsWith("diff ") ? "h" : ""}">${esc(l) || " "}</span>`).join("") : "Diff non salvato per questo commit.";
+}
+
+// ═════════════════════════════════════════════════════════════
+//  AUTORI
+// ═════════════════════════════════════════════════════════════
+function viewAuthors() {
+  setTitle("Autori");
+  const cs = applyFilters(S.commits);
+  const rows = [...group(cs, "author").values()].map(g => {
+    const fs = g.findings, gates = {};
+    fs.forEach(f => gates[f.rule_id] = (gates[f.rule_id] || 0) + 1);
+    const top = Object.entries(gates).sort((a, b) => b[1] - a[1])[0];
+    return { a: g.key, n: g.commits.length, q: METRICS.quality.f(g), crit: fs.filter(f => f.severity === "critical" || f.severity === "error").length, warn: fs.filter(f => f.severity === "warning").length,
+      info: fs.filter(f => f.severity === "info").length, churn: METRICS.churn.f(g), size: METRICS.avg_size.f(g), top, last: g.commits.map(c => c.date).sort().pop() };
+  }).sort((a, b) => b.n - a.n);
+  $("#main").innerHTML = `<h1>Autori</h1><p class="lede">Segnali di mentoring: il gate ricorrente è quello violato più spesso dall'autore nel periodo (≥ 2 occorrenze = pattern).</p>
+    <div class="grid"><section class="card w6"><div class="card-h"><div class="t">Quality media per autore</div></div><div class="chart" id="au-q"></div></section>
+    <section class="card w6"><div class="card-h"><div class="t">Finding per autore</div><div class="st">suddivisi per severità</div></div><div class="chart" id="au-f"></div></section>
+    <section class="card w12">${tableFromRows([{ l: "Autore" }, { l: "Commit", n: 1 }, { l: "Quality", n: 1 }, { l: "Critical+Error", n: 1 }, { l: "Warning", n: 1 }, { l: "Info", n: 1 }, { l: "Righe +/−", n: 1 }, { l: "Righe/commit", n: 1 }, { l: "Gate ricorrente" }, { l: "Ultimo commit" }],
+      rows.map(r => [`<a href="#/commits" onclick="S.f.author=${esc(JSON.stringify(r.a))};syncFilters()">${esc(r.a)}</a>`, r.n, fmtN(r.q, 1), r.crit, r.warn, r.info, fmtN(r.churn), fmtN(r.size), r.top && r.top[1] >= 2 ? `<span class="mono">${esc(r.top[0])}</span> ×${r.top[1]}` : `<span class="muted">—</span>`, r.last ? dm(r.last) : "—"]))}</section></div>`;
+  hbarChart($("#au-q"), aggregate(cs, "author", "quality"), METRICS.quality);
+  // finding per autore impilati per severità → barre orizzontali segmentate
+  const el = $("#au-f"), W = Math.max(320, el.clientWidth), RH = 26, lw = Math.min(200, W * 0.34);
+  const data = rows.filter(r => r.crit + r.warn + r.info > 0);
+  if (!data.length) { el.innerHTML = `<div class="empty">Nessun finding nel periodo ✓</div>`; return; }
+  const segs = r => [["critical+error", r.crit, "var(--status-serious)"], ["warning", r.warn, "var(--status-warning)"], ["info", r.info, "var(--text-muted)"]];
+  const max = niceMax(Math.max(...data.map(r => r.crit + r.warn + r.info))), iw = W - lw - 50;
+  let svg = "";
+  data.forEach((r, i) => { let x = lw; const y = i * RH + 4;
+    svg += `<g class="band" ${tipAttr(tipRows(r.a, segs(r).map(([l, v, c]) => [l, String(v), c])))}><rect class="bandbg" x="0" y="${y - 2}" width="${W}" height="${RH}" fill="transparent"/><text class="lbl" x="${lw - 8}" y="${y + 14}" text-anchor="end" style="fill:var(--text-secondary);font-size:12px">${esc(r.a)}</text>`;
+    const vis = segs(r).filter(s => s[1] > 0);
+    vis.forEach(([, v, c], j) => { const w = iw * v / max - (j < vis.length - 1 ? 2 : 0); svg += j === vis.length - 1 ? `<path d="${hbarPath(x, y + 3, w, 16)}" fill="${c}"/>` : `<rect x="${x}" y="${y + 3}" width="${Math.max(0, w)}" height="16" fill="${c}"/>`; x += w + 2; });
+    svg += `<text class="dlabel" x="${x + 4}" y="${y + 15}">${r.crit + r.warn + r.info}</text></g>`; });
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${data.length * RH + 6}" height="${data.length * RH + 6}">${svg}</svg>` + legendHTML([{ name: "⛔✖ Critical+Error", color: "var(--status-serious)" }, { name: "▲ Warning", color: "var(--status-warning)" }, { name: "ℹ Info", color: "var(--text-muted)" }]);
+}
+
+// ═════════════════════════════════════════════════════════════
+//  GIT-FLOW
+// ═════════════════════════════════════════════════════════════
+const GF = { repo: "", since: "", until: "", fams: new Set(FAMILIES), onlyReviewed: false };
+async function viewGitflow() {
+  setTitle("Git-flow");
+  const repos = S.repos.map(r => r.name).filter(n => S.commits.some(c => c.repo === n));
+  GF.repo ||= S.f.repo || repos[0] || "";
+  const [from, to] = rangeBounds();
+  GF.since = from; GF.until = to;
+  $("#main").innerHTML = `<h1>Git-flow</h1><p class="lede">Topologia reale dal clone locale (<span class="mono">git log --all</span>, nessun fetch). Il periodo segue il filtro globale. I commit revisionati mostrano quality ed esito; clicca per il dettaglio.</p>
+    <div class="toolbar"><select class="ctl" id="gf-repo">${repos.map(r => `<option ${r === GF.repo ? "selected" : ""}>${esc(r)}</option>`).join("")}</select>
+      <span>${FAMILIES.map(f => `<label class="chk"><input type="checkbox" data-fam="${f}" ${GF.fams.has(f) ? "checked" : ""}><span class="pill fam" style="--c:${FAM_COLOR[f]}">${FAM_LABEL[f]}</span></label>`).join("")}</span>
+      <label class="chk"><input type="checkbox" id="gf-rev" ${GF.onlyReviewed ? "checked" : ""}> evidenzia solo i revisionati</label>
+      <span class="muted" id="gf-info" style="margin-left:auto"></span></div>
+    <div class="grid" style="margin-bottom:16px"><section class="card w8"><div class="card-h"><div><div class="t">Attività per tipo di branch</div><div class="st">commit nel periodo, dal grafo (include i commit non raccolti dalla review)</div></div></div><div class="chart" id="gf-act"></div></section>
+    <section class="card w4"><div class="card-h"><div class="t">Merge e copertura</div></div><div id="gf-kpi"></div></section></div>
+    <section class="card"><div id="gf-graph"><div class="empty">Caricamento grafo…</div></div></section>`;
+  $("#gf-repo").onchange = e => { GF.repo = e.target.value; viewGitflow(); };
+  $$("[data-fam]").forEach(cb => cb.onchange = () => { cb.checked ? GF.fams.add(cb.dataset.fam) : GF.fams.delete(cb.dataset.fam); applyGfDim(); });
+  $("#gf-rev").onchange = e => { GF.onlyReviewed = e.target.checked; applyGfDim(); };
+  const g = await api(`/api/gitgraph?repo=${encodeURIComponent(GF.repo)}&since=${GF.since}&until=${GF.until}&limit=1500`);
+  if (g.error) return $("#gf-graph").innerHTML = `<div class="empty">${esc(g.error)}</div>`;
+  GF.graph = g;
+  drawGitGraph(g);
+  // grafici di contesto
+  const rows = g.commits.map(r => ({ ...r, date: r.date, fam: r.family }));
+  const weeks = timeBuckets("week", GF.since, GF.until);
+  const series = FAMILIES.filter(f => rows.some(r => r.fam === f)).map(f => ({ name: FAM_LABEL[f], color: FAM_COLOR[f], values: weeks.map(w => rows.filter(r => r.fam === f && weekKey(r.date) === w).length) }));
+  columnChart($("#gf-act"), weeks.map(w => ({ key: w, label: dm(w) })), series, METRICS.commits, true);
+  const reviewedSet = new Set(S.commits.filter(c => c.repo === GF.repo).map(c => c.hash));
+  const merges = g.commits.filter(r => r.merge), inMain = merges.filter(r => ["main", "develop", "release"].includes(r.family));
+  const cov = g.commits.filter(r => !r.merge && reviewedSet.has(r.hash)).length, nonMerge = g.commits.filter(r => !r.merge).length;
+  $("#gf-kpi").innerHTML = `<div class="kpi"><div class="l">Commit nel grafo</div><div class="v">${g.commits.length}${g.truncated ? "+" : ""}</div></div>
+    <div class="kpi" style="margin-top:10px"><div class="l">Merge (di cui su main/develop/release)</div><div class="v">${merges.length} <span class="muted" style="font-size:16px;font-weight:400">(${inMain.length})</span></div></div>
+    <div class="kpi" style="margin-top:10px"><div class="l">Copertura review (commit non-merge)</div><div class="v">${nonMerge ? Math.round(100 * cov / nonMerge) : 0}%</div><div class="d">${cov} di ${nonMerge} commit raccolti e revisionati</div></div>`;
+  $("#gf-info").textContent = `${g.lanes} corsie · ${g.commits.length} commit`;
+}
+function drawGitGraph(g) {
+  const RH = 26, LW = 14, X0 = 12, rows = g.commits, n = rows.length;
+  if (!n) return $("#gf-graph").innerHTML = `<div class="empty">Nessun commit nel periodo per questo repository</div>`;
+  const W = X0 * 2 + Math.max(1, g.lanes) * LW, H = n * RH;
+  const x = c => X0 + c * LW, y = r => r * RH + RH / 2;
+  const byHash = new Map(S.commits.filter(c => c.repo === GF.repo).map(c => [c.hash, c]));
+  let paths = "", nodes = "";
+  rows.forEach((r, i) => {
+    r.edges.forEach((e, k) => {
+      const col = FAM_COLOR[k === 0 ? r.family : (e.parent_row != null ? rows[e.parent_row].family : r.family)];
+      const x1 = x(r.col), y1 = y(i), xl = x(e.lane);
+      let d = `M${x1},${y1}`;
+      if (e.parent_row == null) { d += xl !== x1 ? `C${x1},${y1 + RH * 0.6} ${xl},${y1 + RH * 0.4} ${xl},${y1 + RH}` : ""; d += `L${xl},${H}`; }
+      else {
+        const pr = e.parent_row, xp = x(e.parent_col);
+        if (xl !== x1) d += `C${x1},${y1 + RH * 0.6} ${xl},${y1 + RH * 0.4} ${xl},${y1 + RH}`;
+        if (pr - 1 > i + (xl !== x1 ? 1 : 0)) d += `L${xl},${y(pr - 1)}`;
+        else if (xl === x1 && pr - 1 > i) d += `L${xl},${y(pr - 1)}`;
+        d += xp !== xl ? `C${xl},${y(pr) - RH * 0.4} ${xp},${y(pr) - RH * 0.6} ${xp},${y(pr)}` : `L${xp},${y(pr)}`;
+      }
+      paths += `<path data-i="${i}" d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round"/>`;
+    });
+  });
+  rows.forEach((r, i) => {
+    const c = FAM_COLOR[r.family], rv = byHash.get(r.hash);
+    nodes += r.merge ? `<circle class="node" data-i="${i}" cx="${x(r.col)}" cy="${y(i)}" r="4.5" fill="var(--surface-1)" stroke="${c}" stroke-width="2"/>`
+      : `<circle class="node" data-i="${i}" cx="${x(r.col)}" cy="${y(i)}" r="${rv ? 5.5 : 4.5}" fill="${c}" stroke="var(--surface-1)" stroke-width="2"/>`;
+  });
+  const rowsHTML = rows.map((r, i) => {
+    const rv = byHash.get(r.hash);
+    const refs = r.refs.filter(x => !x.startsWith("tag: ")).map(x => x.replace(/^origin\//, ""));
+    return `<div class="gf-row ${rv ? "inds" : ""}" data-i="${i}" ${rv ? `data-cid="${esc(rv.id)}"` : ""} style="height:${RH}px">
+      <span class="mono muted">${esc(r.short)}</span>
+      <span class="ellip" title="${esc(r.branch)}">${r.tags.map(t => `<span class="tag">⚑ ${esc(t)}</span>`).join("")}${refs.length ? `<span class="pill fam" style="--c:${FAM_COLOR[r.family]}">${esc(refs[0])}</span>${refs.length > 1 ? ` <span class="muted">+${refs.length - 1}</span>` : ""}` : `<span class="muted">${esc(r.branch)}</span>`}</span>
+      <span class="ellip" title="${esc(r.subject)}">${r.merge ? `<span class="muted">⑂</span> ` : ""}${esc(r.subject)}</span>
+      <span class="ellip muted">${esc(r.author)}</span><span class="muted">${dm(r.date)} ${r.date.slice(11, 16)}</span>
+      <span>${rv ? (rv.reviewed ? `${rv.quality ?? "—"}/10 ${SEV_META[rv.worst].icon}` : `<span class="muted">raccolto</span>`) : ""}</span></div>`;
+  }).join("");
+  $("#gf-graph").innerHTML = `<div class="gf-row gf-head" style="margin-left:${W}px"><span>Hash</span><span>Branch</span><span>Messaggio</span><span>Autore</span><span>Data</span><span>Review</span></div>
+    <div class="gf"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="width:${W}px">${paths}${nodes}</svg><div class="gf-rows">${rowsHTML}</div></div>
+    ${g.truncated ? `<div class="muted" style="margin-top:8px">Grafo troncato: restringi il periodo per vedere tutto.</div>` : ""}
+    <div class="legend">${FAMILIES.map(f => `<span><span class="sw" style="background:${FAM_COLOR[f]}"></span>${FAM_LABEL[f]}</span>`).join("")}<span>● pieno grande = revisionato · ○ = merge</span></div>`;
+  applyGfDim();
+}
+function applyGfDim() {
+  const g = GF.graph; if (!g) return;
+  const reviewed = new Set(S.commits.filter(c => c.repo === GF.repo).map(c => c.hash));
+  g.commits.forEach((r, i) => {
+    const dim = !GF.fams.has(r.family) || (GF.onlyReviewed && !reviewed.has(r.hash));
+    $$(`#gf-graph [data-i="${i}"]`).forEach(el => el.classList.toggle("dim", dim));
+  });
+}
+
+// ═════════════════════════════════════════════════════════════
+//  RILASCI
+// ═════════════════════════════════════════════════════════════
+async function viewReleases() {
+  setTitle("Rilasci");
+  const repos = S.repos.map(r => r.name).filter(n => S.commits.some(c => c.repo === n));
+  $("#main").innerHTML = `<h1>Rilasci</h1><p class="lede">Tag di versione dai cloni locali: quanti commit ha introdotto ogni rilascio rispetto al precedente e quanto tempo è passato.</p><div id="rel"></div>`;
+  for (const repo of repos) {
+    const { tags } = await api(`/api/releases?repo=${encodeURIComponent(repo)}`);
+    const id = "rel-" + repo.replace(/\W/g, "");
+    const shown = tags.slice(-20);
+    $("#rel").insertAdjacentHTML("beforeend", `<div class="grid" style="margin-bottom:16px">
+      <section class="card w8"><div class="card-h"><div><div class="t">${esc(repo)} — commit per rilascio</div><div class="st">ultimi ${shown.length} tag · commit tra un tag e il precedente</div></div><div class="tools"><button class="btn ghost sm" data-tbl="${id}">▤</button></div></div><div class="chart" id="${id}"></div></section>
+      <section class="card w4"><div class="card-h"><div class="t">Ultimi rilasci</div></div>${shown.length ? tableFromRows([{ l: "Tag" }, { l: "Data" }, { l: "Commit", n: 1 }, { l: "Giorni", n: 1 }],
+        shown.slice().reverse().map((t, i, arr) => { const prev = arr[i + 1]; const gap = prev ? Math.round((new Date(t.date) - new Date(prev.date)) / 864e5) : null; return [`<span class="mono">${esc(t.tag)}</span>`, dm(t.date) + "/" + t.date.slice(2, 4), fmtN(t.commits), gap == null ? "—" : gap]; })) : `<div class="empty">Nessun tag</div>`}</section></div>`);
+    const draw = tbl => {
+      const el = $("#" + id);
+      if (!shown.length) return el.innerHTML = `<div class="empty">Nessun tag nel repository</div>`;
+      if (tbl) return el.innerHTML = tableFromRows([{ l: "Tag" }, { l: "Data" }, { l: "Commit", n: 1 }], shown.map(t => [esc(t.tag), t.date.slice(0, 10), fmtN(t.commits)]));
+      columnChart(el, shown.map(t => ({ key: t.tag, label: t.tag })), [{ name: "Commit", color: "var(--s1)", values: shown.map(t => t.commits || 0) }], { label: "Commit nel rilascio" }, false);
+    };
+    let t = false; draw(t); $(`[data-tbl="${id}"]`).onclick = () => draw(t = !t);
+  }
+  if (!repos.length) $("#rel").innerHTML = `<div class="empty">Nessun repository</div>`;
+}
+
+// ═════════════════════════════════════════════════════════════
+//  KB SUGGESTION (sola lettura)
+// ═════════════════════════════════════════════════════════════
+async function viewKB() {
+  setTitle("Suggestion KB");
+  $("#main").innerHTML = `<div class="empty">Caricamento…</div>`;
+  if (!S.kb) S.kb = (await api("/api/kb")).suggestions;
+  const ss = S.kb.filter(s => !s.error);
+  const st = {}; ss.forEach(s => st[s.status] = (st[s.status] || 0) + 1);
+  const order = { pending: 0, approved: 1, merged: 2, rejected: 3 };
+  $("#main").innerHTML = `<h1>Suggestion della knowledge base</h1>
+    <p class="lede">Vista in sola lettura: le decisioni passano da <span class="mono">python3 scripts/kb_manager.py --review</span> (o dal tool MCP), che gestisce versioni e changelog.</p>
+    ${S.kb.some(s => s.error) ? `<div class="banner">${esc(S.kb.find(s => s.error).error)}</div>` : ""}
+    <div class="grid" style="margin-bottom:16px">${["pending", "approved", "merged", "rejected"].map(k => `<section class="card w3"><div class="kpi"><div class="l">${{ pending: "In attesa", approved: "Approvate", merged: "Integrate", rejected: "Rifiutate" }[k]}</div><div class="v">${st[k] || 0}</div></div></section>`).join("")}</div>
+    <section class="card">${ss.length ? tableFromRows([{ l: "Stato" }, { l: "ID" }, { l: "Layer / sezione" }, { l: "Tipo" }, { l: "Confidenza", n: 1 }, { l: "Motivazione" }],
+      ss.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || String(b.id).localeCompare(String(a.id))).map(s => [
+        `<span class="pill">${esc(s.status)}</span>`, `<span class="mono">${esc(s.id)}</span><div class="muted">${esc(s.date || "")}</div>`,
+        `${esc(s.layer)}<div class="muted mono">${esc(s.section)}</div>`, esc(s.type), s.confidence != null ? Math.round(s.confidence * 100) + "%" : "—",
+        `<div>${esc(s.reason)}</div>${s.content ? `<details><summary class="muted">contenuto</summary><pre class="mono" style="white-space:pre-wrap">${esc(JSON.stringify(s.content, null, 2))}</pre></details>` : ""}`])) : `<div class="empty">Nessuna suggestion</div>`}</section>`;
+}
+
+// ═════════════════════════════════════════════════════════════
+//  MARKDOWN (sottoinsieme sicuro: tutto escapato prima)
+// ═════════════════════════════════════════════════════════════
+function inl(s) {
+  return esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[\s(])_([^_]+)_(?=[\s).,;:]|$)/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, t, u) => {
+      const day = u.match(/^(\d{4}-\d{2}-\d{2})\//); const href = day ? `#/reports/${day[1]}` : /^https?:/.test(u) ? u : "#";
+      return `<a href="${href}" ${/^https?:/.test(u) ? 'target="_blank" rel="noopener"' : ""}>${t}</a>`; });
+}
+function md(src) {
+  const L = (src || "").split("\n"); let out = "", i = 0;
+  while (i < L.length) {
+    const l = L[i];
+    if (/^```/.test(l)) { let b = []; i++; while (i < L.length && !/^```/.test(L[i])) b.push(L[i++]); i++; out += `<pre><code>${esc(b.join("\n"))}</code></pre>`; continue; }
+    const h = l.match(/^(#{1,4})\s+(.*)/); if (h) { out += `<h${h[1].length}>${inl(h[2])}</h${h[1].length}>`; i++; continue; }
+    if (/^---+\s*$/.test(l)) { out += "<hr style='border:0;border-top:1px solid var(--border)'>"; i++; continue; }
+    if (/^\|/.test(l)) { const rows = []; while (i < L.length && /^\|/.test(L[i])) rows.push(L[i++]);
+      const cells = r => r.replace(/^\||\|\s*$/g, "").split("|").map(c => c.trim());
+      const body = rows.filter((r, k) => !(k === 1 && /^\|[\s:|-]+\|?\s*$/.test(r)));
+      out += `<table><thead><tr>${cells(body[0]).map(c => `<th>${inl(c)}</th>`).join("")}</tr></thead><tbody>${body.slice(1).map(r => `<tr>${cells(r).map(c => `<td>${inl(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`; continue; }
+    if (/^>/.test(l)) { const b = []; while (i < L.length && /^>/.test(L[i])) b.push(L[i++].replace(/^>\s?/, "")); out += `<blockquote>${md(b.join("\n"))}</blockquote>`; continue; }
+    if (/^\s*([-*]|\d+\.)\s+/.test(l)) { const ol = /^\s*\d+\./.test(l); const b = [];
+      while (i < L.length && (/^\s*([-*]|\d+\.)\s+/.test(L[i]) || (/^\s{2,}\S/.test(L[i]) && b.length))) {
+        if (/^\s*([-*]|\d+\.)\s+/.test(L[i]) && !/^\s{4,}/.test(L[i])) b.push(L[i].replace(/^\s*([-*]|\d+\.)\s+/, "")); else b[b.length - 1] += "<br>" + inl(L[i].trim()).replace(/^/, "");
+        i++; }
+      out += `<${ol ? "ol" : "ul"}>${b.map(x => `<li>${x.includes("<br>") ? inl(x.split("<br>")[0]) + "<br>" + x.split("<br>").slice(1).join("<br>") : inl(x)}</li>`).join("")}</${ol ? "ol" : "ul"}>`; continue; }
+    if (!l.trim()) { i++; continue; }
+    const p = []; while (i < L.length && L[i].trim() && !/^(#|\||>|```|\s*([-*]|\d+\.)\s|---)/.test(L[i])) p.push(L[i++]);
+    if (!p.length) { out += `<p>${inl(l)}</p>`; i++; continue; }
+    out += `<p>${p.map(inl).join("<br>")}</p>`;
+  }
+  return out;
+}
+
+// ═════════════════════════════════════════════════════════════
+//  ROUTER
+// ═════════════════════════════════════════════════════════════
+function setTitle(t) { $("#page-title").textContent = t; document.title = `${t} · Daily Review`; }
+function route() {
+  closeDrawer();
+  const parts = (location.hash || "#/dashboard/default").slice(2).split("/");
+  const r = parts[0] || "dashboard";
+  $$("#side a.nav[data-r]").forEach(a => a.classList.toggle("active", a.dataset.r === r && !(r === "dashboard" && parts[1] && parts[1] !== "default")));
+  if (r !== "dashboard") renderDashLinks(null);
+  if (r === "dashboard") { if (parts[1] !== S._lastDash) S.editing = false; S._lastDash = parts[1]; return viewDashboard(parts[1] || "default"); }
+  if (r === "reports") return parts[1] ? viewDay(parts[1]) : viewReports();
+  if (r === "commits") return viewCommits();
+  if (r === "authors") return viewAuthors();
+  if (r === "gitflow") return viewGitflow();
+  if (r === "releases") return viewReleases();
+  if (r === "kb") return viewKB();
+  viewDashboard("default");
+}
+function rerender() { route(); }
+let _rz; addEventListener("resize", () => { clearTimeout(_rz); _rz = setTimeout(() => { if (!/gitflow|releases|kb/.test(location.hash)) route(); }, 200); });
+addEventListener("hashchange", route);
+
+// Tema
+(function () {
+  const saved = localStorage.getItem("gdr-theme"); if (saved) document.documentElement.dataset.theme = saved;
+  $("#theme-btn").onclick = () => {
+    const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    const next = cur === "dark" ? "light" : "dark"; document.documentElement.dataset.theme = next; localStorage.setItem("gdr-theme", next); route();
+  };
+})();
+
+(async function boot() {
+  try {
+    const [data, dash] = await Promise.all([api("/api/dataset"), api("/api/dashboards")]);
+    S.data = data; S.commits = data.commits; S.days = data.days; S.repos = data.repos; S.dashboards = dash.dashboards;
+    initFilters(); route();
+  } catch (e) { $("#main").innerHTML = `<div class="empty">Errore nel caricamento dei dati: ${esc(e.message)}</div>`; }
+})();
+</script>
+</body>
+</html>
