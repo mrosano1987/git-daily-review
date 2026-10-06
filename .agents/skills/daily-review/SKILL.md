@@ -38,7 +38,10 @@ on reports/KB/repos. Point the user here when they want to browse or
 aggregate across days rather than read a single report. The portal reads
 from `data/review.db` (SQLite), which every review run and the digest's
 `html_report.py` step update; `python3 scripts/review_db.py --sync` imports
-anything new (e.g. a briefing), `--stats` shows what it holds. Never commit
+anything new (e.g. a briefing), `--stats` shows what it holds. Briefings
+are stored parsed (table `briefings`: digest date, preparation date,
+sections, open question) and have their own "Briefing" view in the portal;
+save new ones as `reports/<digest-date>/briefing.md` so they are picked up. Never commit
 `data/` — it holds client data.
 
 Knowledge base curation:

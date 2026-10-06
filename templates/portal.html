@@ -277,6 +277,18 @@ table.t th { text-transform: uppercase; letter-spacing: .04em; font-size: 11px; 
 .diff { border-radius: 4px; }
 .banner { border-radius: 4px; }
 
+/* Briefing */
+.blist { max-height: 760px; overflow-y: auto; }
+.bitem { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 4px; text-decoration: none; color: inherit; border: 1px solid transparent; margin-bottom: 4px; }
+.bitem:hover { background: var(--hover); }
+.bitem.on { background: var(--accent-soft, var(--surface-2)); border-color: var(--accent); }
+.bitem .bs { color: var(--text-muted); font-size: 12px; }
+.bitem .bq { color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
+.bitem.miss .bd b { color: var(--text-secondary); }
+.bsec { border-top: 1px solid var(--grid); padding-top: 4px; margin-top: 12px; }
+.bsec h3 { margin: 10px 0 6px; }
+.bsec.q { border: 1px solid var(--accent); border-radius: 4px; padding: 4px 14px 8px; background: var(--accent-soft, transparent); }
+
 /* Sidebar: dashboard predefinita vs personali */
 .dash-tree { margin: 2px 0 6px 18px; padding-left: 8px; border-left: 1px solid var(--grid); display: flex; flex-direction: column; gap: 1px; }
 .dash-tree .sub { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--text-muted); padding: 6px 8px 2px; }
@@ -401,6 +413,7 @@ dialog#wdlg form { display: flex; flex-direction: column; max-height: 92vh; }
   <a class="nav" data-r="dashboard" href="#/dashboard/default"><span class="ico">▦</span>Dashboard</a>
   <div id="dash-links" class="dash-tree"></div>
   <a class="nav" data-r="reports" href="#/reports"><span class="ico">◷</span>Report giornalieri</a>
+  <a class="nav" data-r="briefings" href="#/briefings"><span class="ico">❝</span>Briefing</a>
   <a class="nav" data-r="commits" href="#/commits"><span class="ico">≡</span>Storico commit</a>
   <a class="nav" data-r="authors" href="#/authors"><span class="ico">◉</span>Autori</a>
   <div class="nav-group">Repository</div>
@@ -1237,8 +1250,10 @@ async function viewDay(date) {
   const meta = S.days.find(d => d.date === date) || {};
   const cs = S.commits.filter(c => c.day === date);
   const findings = cs.flatMap(c => c.findings);
-  const tabs = ["digest.md", "briefing.md", "daily-summary.md"].filter(n => doc.docs[n]);
+  const variants = Object.keys(doc.docs).filter(n => /^briefing-.+\.md$/.test(n)).sort().reverse();
+  const tabs = ["digest.md", "briefing.md", ...variants, "daily-summary.md"].filter(n => doc.docs[n]);
   const label = { "digest.md": "Digest", "briefing.md": "Briefing", "daily-summary.md": "Report completo" };
+  variants.forEach(n => { const d = n.match(/(\d{4}-\d{2}-\d{2})/); label[n] = `Briefing ${d ? dm(d[1]) : "prec."}`; });
   const i = S.days.findIndex(d => d.date === date);
   const prev = S.days[i - 1]?.date, next = S.days[i + 1]?.date;
   $("#main").innerHTML = `
@@ -1263,6 +1278,59 @@ async function viewDay(date) {
   };
   $("#day-tabs").onclick = e => e.target.dataset.t && show(e.target.dataset.t);
   show(tabs[0] || "__commits");
+}
+
+// ═════════════════════════════════════════════════════════════
+//  BRIEFING
+// ═════════════════════════════════════════════════════════════
+const cleanTitle = t => (t || "Briefing").replace(/^[^\p{L}\p{N}]+/u, "").trim();
+const plain = s => (s || "").replace(/^>\s?/gm, "").replace(/[*`#]/g, "").replace(/(^|\s)_|_(?=\s|$|[.,;:!?])/g, "$1").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\s+/g, " ").trim();
+async function viewBriefings(selDate, selName) {
+  setTitle("Briefing");
+  $("#main").innerHTML = `<div class="empty">Caricamento…</div>`;
+  const all = (await api("/api/briefings")).briefings;
+  const [from, to] = rangeBounds();
+  const list = all.filter(b => b.prepared_on >= from && b.prepared_on <= to);
+  // Digest del periodo senza alcun briefing (nessun file briefing*.md nella cartella)
+  const withBriefing = new Set(all.map(b => b.date));
+  const missing = S.days.filter(d => d.date >= from && d.date <= to && d.docs.includes("digest.md") && !withBriefing.has(d.date)).reverse();
+  const digests = S.days.filter(d => d.date >= from && d.date <= to && d.docs.includes("digest.md")).length;
+  const current = list.filter(b => b.is_current);
+  const sel = all.find(b => b.date === selDate && b.name === (selName || "briefing.md")) || list[0];
+  const byMonth = {};
+  list.forEach(b => (byMonth[b.prepared_on.slice(0, 7)] ||= []).push(b));
+  const wd = d => GIORNI[(parseDay(d).getDay() + 6) % 7];
+  const item = b => `<a class="bitem ${sel && b.date === sel.date && b.name === sel.name ? "on" : ""}" href="#/briefings/${b.date}/${encodeURIComponent(b.name)}">
+      <span class="bd"><b>${wd(b.prepared_on)} ${dm(b.prepared_on)}</b>${b.is_current ? "" : ` <span class="pill">versione precedente</span>`}</span>
+      <span class="bs">dal digest del ${dm(b.date)}</span>
+      ${b.open_question ? `<span class="bq">❓ ${esc(plain(b.open_question).slice(0, 110))}${plain(b.open_question).length > 110 ? "…" : ""}</span>` : ""}</a>`;
+  $("#main").innerHTML = `<h1>Briefing per il reparto sviluppo</h1>
+    <p class="lede">I briefing preparati dal digest del giorno lavorativo precedente, con tutte le versioni. Il periodo segue il filtro globale (data di preparazione).</p>
+    <div class="grid" style="margin-bottom:16px">
+      <section class="card w3"><div class="kpi"><div class="l">Briefing preparati</div><div class="v">${current.length}</div><div class="d">${list.length - current.length} versioni precedenti</div></div></section>
+      <section class="card w3"><div class="kpi"><div class="l">Digest coperti da briefing</div><div class="v">${digests ? Math.round(100 * (digests - missing.length) / digests) : 0}%</div><div class="d">${digests - missing.length} di ${digests} digest nel periodo</div></div></section>
+      <section class="card w3"><div class="kpi"><div class="l">Ultimo briefing</div><div class="v">${list[0] ? dm(list[0].prepared_on) : "—"}</div><div class="d">${list[0] ? "dal digest del " + dm(list[0].date) : "nessuno nel periodo"}</div></div></section>
+      <section class="card w3"><div class="kpi"><div class="l">Digest senza briefing</div><div class="v">${missing.length}</div><div class="d">${missing.length ? missing.slice(0, 4).map(d => dm(d.date)).join(", ") + (missing.length > 4 ? "…" : "") : "nessuno ✓"}</div></div></section>
+    </div>
+    <div class="grid">
+      <section class="card w4 blist"><div class="card-h"><div class="t">Tutti i briefing</div></div>
+        ${list.length ? Object.entries(byMonth).map(([m, bs]) => `<div class="month-h" style="margin:10px 0 6px">${MESI_L[+m.slice(5, 7) - 1]} ${m.slice(0, 4)}</div>${bs.map(item).join("")}`).join("") : `<div class="empty">Nessun briefing nel periodo</div>`}
+        ${missing.length ? `<div class="month-h" style="margin:16px 0 6px">Digest senza briefing</div>${missing.map(d => `<a class="bitem miss" href="#/reports/${d.date}"><span class="bd"><b>${wd(d.date)} ${dm(d.date)}</b> <span class="pill">briefing mancante</span></span><span class="bs">${d.commits} commit · apri il digest</span></a>`).join("")}` : ""}
+      </section>
+      <section class="card w8" id="bdetail"></section>
+      <section class="card w12"><div class="card-h"><div><div class="t">Domande aperte al reparto</div><div class="st">la domanda finale di ogni briefing nel periodo, dalla più recente</div></div></div>
+        ${current.filter(b => b.open_question).length ? tableFromRows([{ l: "Briefing" }, { l: "Domanda" }], current.filter(b => b.open_question).map(b =>
+          [`<a href="#/briefings/${b.date}/${encodeURIComponent(b.name)}">${dm(b.prepared_on)}</a>`, esc(plain(b.open_question).slice(0, 420)) + (plain(b.open_question).length > 420 ? "…" : "")])) : `<div class="empty">Nessuna domanda nel periodo</div>`}</section>
+    </div>`;
+  const det = $("#bdetail");
+  if (!sel) { det.innerHTML = `<div class="empty">Nessun briefing da mostrare</div>`; return; }
+  const siblings = all.filter(b => b.date === sel.date).sort((a, b) => b.prepared_on.localeCompare(a.prepared_on));
+  det.innerHTML = `<div class="card-h"><div><div class="st">Preparato ${wd(sel.prepared_on)} ${dm(sel.prepared_on)}/${sel.prepared_on.slice(0, 4)} · dal digest del <a href="#/reports/${sel.date}">${dm(sel.date)}</a>${sel.is_current ? "" : " · versione precedente"}</div>
+      <h2 style="margin:4px 0 0;font-size:18px">${esc(cleanTitle(sel.title))}</h2></div>
+      <div class="tools"><a class="btn sm" href="#/reports/${sel.date}">Report del ${dm(sel.date)}</a></div></div>
+    ${siblings.length > 1 ? `<div class="toolbar" style="margin:6px 0 10px"><span class="muted">Versioni:</span>${siblings.map(b => `<a class="btn sm ${b.name === sel.name ? "primary" : ""}" href="#/briefings/${b.date}/${encodeURIComponent(b.name)}">${dm(b.prepared_on)}${b.is_current ? " (corrente)" : ""}</a>`).join("")}</div>` : ""}
+    ${sel.intro ? `<div class="md">${md(sel.intro)}</div>` : ""}
+    ${sel.sections.map(sec => `<div class="bsec ${/domanda/i.test(sec.title) ? "q" : ""}">${sec.title ? `<h3>${esc(sec.title)}</h3>` : ""}<div class="md">${md(sec.body)}</div></div>`).join("")}`;
 }
 
 // ═════════════════════════════════════════════════════════════
@@ -1556,6 +1624,7 @@ function route() {
   if (r !== "dashboard") renderDashLinks(null);
   if (r === "dashboard") { if (parts[1] !== S._lastDash) S.editing = false; S._lastDash = parts[1]; return viewDashboard(parts[1] || "default"); }
   if (r === "reports") return parts[1] ? viewDay(parts[1]) : viewReports();
+  if (r === "briefings") return viewBriefings(parts[1], parts[2]);
   if (r === "commits") return viewCommits();
   if (r === "authors") return viewAuthors();
   if (r === "gitflow") return viewGitflow();

@@ -95,6 +95,9 @@ class PortalHandler(http.server.BaseHTTPRequestHandler):
         if path == "/api/releases":
             rp = db.repo_path(qs.get("repo", ""))
             return self._json({"tags": pd.release_timeline(rp) if rp else []})
+        if path == "/api/briefings":
+            get_dataset()  # sync incrementale: un briefing appena scritto entra subito
+            return self._json({"briefings": db.briefings()})
         if path == "/api/kb":
             return self._json({"suggestions": db.kb_suggestions()})
         if path == "/api/dashboards":

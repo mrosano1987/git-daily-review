@@ -43,7 +43,7 @@ SUGGESTIONS_DIR = ROOT_DIR / "config" / "kb_suggestions"
 DB_PATH = Path(os.environ.get("GDR_DB") or ROOT_DIR / "data" / "review.db")
 LEGACY_DASHBOARDS = REPORTS_DIR / ".portal" / "dashboards.json"
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 SEVERITIES = ["critical", "error", "warning", "info"]
 SEV_FROM_ICON = {"🔴": "error", "🟡": "warning", "🔵": "info", "⛔": "critical"}
@@ -137,6 +137,19 @@ CREATE TABLE IF NOT EXISTS documents (
     mtime   TEXT NOT NULL,
     PRIMARY KEY (date, name)
 );
+-- Briefing per il reparto sviluppo (uno per file: briefing.md + versioni).
+CREATE TABLE IF NOT EXISTS briefings (
+    date          TEXT NOT NULL,          -- giorno del digest su cui si basa
+    name          TEXT NOT NULL,          -- briefing.md, briefing-2026-10-05.md, …
+    prepared_on   TEXT,                   -- giorno in cui è stato preparato
+    is_current    INTEGER NOT NULL,       -- 1 = briefing.md, 0 = versione precedente
+    title         TEXT,
+    intro         TEXT,
+    sections_json TEXT NOT NULL DEFAULT '[]',
+    open_question TEXT,
+    PRIMARY KEY (date, name)
+);
+CREATE INDEX IF NOT EXISTS briefings_prepared ON briefings(prepared_on);
 CREATE TABLE IF NOT EXISTS kb_suggestions (
     id              TEXT PRIMARY KEY,
     date            TEXT,
@@ -199,6 +212,10 @@ def _migrate(conn):
     if version >= SCHEMA_VERSION:
         return
     conn.executescript(SCHEMA)
+    if version > 0:
+        # Nuove tabelle derivate dai report: azzera lo stato dell'import
+        # incrementale così il prossimo sync reimporta tutti i giorni.
+        conn.execute("DELETE FROM sources")
     conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     _bump(conn)
 
@@ -286,6 +303,70 @@ def _reviews_from_summary(path: Path) -> dict:
         elif s.startswith("- 💬 ") and current["findings"]:
             current["findings"][-1]["suggestion"] = s[4:]
     return out
+
+
+_BRIEFING_NAME = re.compile(r"^briefing(?:-prev)?(?:-(\d{4}-\d{2}-\d{2}))?\.md$")
+_PREPARED = re.compile(r"Preparat[oa][^0-9\n]{0,60}?(\d{4}-\d{2}-\d{2})")
+_DMY = re.compile(r"\b(\d{2})/(\d{2})/(\d{4})\b")
+_YMD = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+
+
+def _question(body: str) -> str:
+    """La domanda vera e propria: il primo blockquote, altrimenti il primo paragrafo."""
+    blocks = re.split(r"\n\s*\n", body.strip())
+    quote = next((b for b in blocks if b.lstrip().startswith(">")), None)
+    return (quote or (blocks[0] if blocks else "")).strip()
+
+
+def parse_briefing(name: str, content: str, mtime_day: str) -> dict:
+    """
+    Struttura di un briefing: titolo, introduzione (blockquote iniziale),
+    sezioni `## …` e domanda aperta. La data di preparazione viene dal nome
+    del file (`briefing-YYYY-MM-DD.md`), poi da "Preparato il …", poi dal
+    titolo, infine dalla data di modifica del file.
+    """
+    lines = content.splitlines()
+    title = next((l.lstrip("# ").strip() for l in lines if l.startswith("# ")), "")
+    sections, intro, cur = [], [], None
+    for l in lines:
+        if l.startswith("## "):
+            cur = {"title": l[3:].strip(), "body": []}
+            sections.append(cur)
+        elif re.match(r"^\s*---+\s*$", l) and cur is not None:
+            # Un separatore chiude la sezione: ciò che segue (es. "Azione per
+            # oggi") va in un blocco senza titolo, non nella domanda aperta.
+            cur = {"title": "", "body": []}
+            sections.append(cur)
+        elif l.startswith("# ") and cur is None:
+            continue
+        elif cur is None:
+            intro.append(l)
+        else:
+            cur["body"].append(l)
+    for sec in sections:
+        sec["body"] = "\n".join(sec["body"]).strip()
+    sections = [sec for sec in sections if sec["title"] or sec["body"]]
+
+    prepared = None
+    m = _BRIEFING_NAME.match(name)
+    if m and m.group(1):
+        prepared = m.group(1)
+    if not prepared:
+        m = _PREPARED.search(content[:1500])
+        prepared = m.group(1) if m else None
+    if not prepared:
+        m = _DMY.search(title)
+        if m:
+            prepared = f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
+        elif "digest" not in title.lower():
+            m = _YMD.search(title)
+            prepared = m.group(1) if m else None
+    question = _question(next((sec["body"] for sec in sections if "domanda" in sec["title"].lower()), ""))
+    return {
+        "title": title, "intro": "\n".join(intro).strip(), "sections": sections,
+        "open_question": question, "prepared_on": prepared or mtime_day,
+        "is_current": name == "briefing.md",
+    }
 
 
 def _worst(findings: list) -> str:
@@ -399,6 +480,7 @@ def ingest_day(day: str, reports_dir: Path = REPORTS_DIR, db_path: Path = None) 
                   mr.get("summary", ""), json.dumps(mr.get("positive_notes", []), ensure_ascii=False),
                   json.dumps(mr.get("critical_issues", []), ensure_ascii=False)))
 
+        conn.execute("DELETE FROM briefings WHERE date=?", (day,))
         for md in sorted(day_dir.glob("*.md")):
             try:
                 content = md.read_text(encoding="utf-8", errors="replace")
@@ -408,6 +490,14 @@ def ingest_day(day: str, reports_dir: Path = REPORTS_DIR, db_path: Path = None) 
             conn.execute("INSERT OR REPLACE INTO documents(date, name, content, mtime) VALUES (?,?,?,?)",
                          (day, md.name, content, mtime))
             stats["documents"] += 1
+            if _BRIEFING_NAME.match(md.name):
+                b = parse_briefing(md.name, content, mtime[:10])
+                conn.execute("""
+                    INSERT OR REPLACE INTO briefings(date, name, prepared_on, is_current, title, intro,
+                        sections_json, open_question) VALUES (?,?,?,?,?,?,?,?)
+                """, (day, md.name, b["prepared_on"], 1 if b["is_current"] else 0, b["title"], b["intro"],
+                      json.dumps(b["sections"], ensure_ascii=False), b["open_question"]))
+                stats["briefings"] = stats.get("briefings", 0) + 1
 
         quality = (model or {}).get("quality_avg")
         if quality is None and day_scores:
@@ -607,6 +697,20 @@ def repo_path(name: str, db_path: Path = None):
     return row["path"] if row else None
 
 
+def briefings(db_path: Path = None) -> list:
+    """Tutti i briefing (con il testo completo), il più recente per primo."""
+    with connect(db_path) as conn:
+        rows = [dict(r) for r in conn.execute("""
+            SELECT b.*, d.content FROM briefings b
+            JOIN documents d ON d.date = b.date AND d.name = b.name
+            ORDER BY b.prepared_on DESC, b.date DESC, b.is_current DESC, b.name DESC
+        """)]
+    for r in rows:
+        r["sections"] = json.loads(r.pop("sections_json") or "[]")
+        r["is_current"] = bool(r["is_current"])
+    return rows
+
+
 def kb_suggestions(db_path: Path = None) -> list:
     with connect(db_path) as conn:
         rows = [dict(r) for r in conn.execute("SELECT * FROM kb_suggestions ORDER BY id")]
@@ -641,6 +745,7 @@ def stats(db_path: Path = None) -> dict:
             "db": str(db_path or DB_PATH), "days": count("days"), "from": span[0], "to": span[1],
             "repos": count("repos"), "commits": count("commits"), "reviews": count("reviews"),
             "findings": count("findings"), "documents": count("documents"),
+            "briefings": count("briefings"),
             "kb_suggestions": count("kb_suggestions"), "dashboards": count("dashboards"),
         }
 

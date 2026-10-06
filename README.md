@@ -88,6 +88,7 @@ listening on `127.0.0.1` only) backed by a local SQLite database:
 |------|---------------|
 | **Dashboard** | Default *reviewer overview* (KPIs with delta vs. previous period, quality trend, commits per branch type, findings per severity, top violated gates, quality per author, directory hotspots, commit-time heatmap, findings to discuss). Create custom dashboards — blank or from the *Author mentoring* / *Releases & stability* templates — and add widgets: KPI, line, columns, stacked columns, horizontal ranking, heatmap, commit or finding tables. Each widget picks a metric (commits, quality, findings, critical+error, churn, files, % reviewed, authors, lines per commit), a grouping (day/week/month, author, repo, branch, branch type, gate, severity, directory, file, weekday, hour, quality band), an optional split and its own filters. |
 | **Daily reports** | Coverage per day (failed `git fetch` flagged), then per-day KPIs, charts, the digest, briefing and full report rendered, and a link to that day's `dashboard.html`. |
+| **Briefing** | Every dev-team briefing, current and earlier versions, by preparation date: the five points as sections, the open question highlighted, links to the source digest; digests left without a briefing are flagged, and a table collects the open questions asked to the team over time. |
 | **Commit history** | Every collected commit with its review outcome; search, filter, sort; a drawer with findings, files and the diff (falls back to `git show` on the local clone when the diff was not saved). |
 | **Authors** | Quality, findings by severity, average commit size and the recurring gate per author (mentoring signal). |
 | **Git-flow** | Lane graph of the real topology from the local clone (`git log --all`, never `fetch`): branches coloured by type (main, develop, release, hotfix, feature, bugfix), merges, tags, and review score on reviewed commits; weekly activity by branch type and review coverage. |
@@ -101,7 +102,9 @@ Global filters (period, repository, author) apply to every view.
 `data/review.db` (SQLite, git-ignored, override with `$GDR_DB`) archives what
 the routines produce: collected commits with diffs, review outcomes and
 findings, per-repo collection status and AI summaries, the day's documents
-(`daily-summary.md`, `digest.md`, `briefing.md`, …), the KB suggestion queue
+(`daily-summary.md`, `digest.md`, `briefing.md`, …) plus the briefings parsed
+into structure (digest date, preparation date, sections, open question —
+table `briefings`), the KB suggestion queue
 and the custom dashboards. It is fed in three ways:
 
 - `daily_review.py` imports the day at the end of every run;
