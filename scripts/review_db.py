@@ -43,7 +43,7 @@ SUGGESTIONS_DIR = ROOT_DIR / "config" / "kb_suggestions"
 DB_PATH = Path(os.environ.get("GDR_DB") or ROOT_DIR / "data" / "review.db")
 LEGACY_DASHBOARDS = REPORTS_DIR / ".portal" / "dashboards.json"
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 SEVERITIES = ["critical", "error", "warning", "info"]
 SEV_FROM_ICON = {"🔴": "error", "🟡": "warning", "🔵": "info", "⛔": "critical"}
@@ -63,7 +63,11 @@ CREATE TABLE IF NOT EXISTS days (
     errors_json   TEXT NOT NULL DEFAULT '[]',
     has_model     INTEGER NOT NULL DEFAULT 0,
     has_dashboard INTEGER NOT NULL DEFAULT 0,
-    ingested_at   TEXT NOT NULL
+    ingested_at   TEXT NOT NULL,
+    covers_since  TEXT,                   -- intervallo raccolto (run di recupero: più giorni)
+    covers_until  TEXT,
+    collected_at  TEXT,
+    catch_up_json TEXT                    -- run di recupero: giorni recuperati / in attesa
 );
 -- Esito della raccolta e sintesi AI per repository e giorno.
 CREATE TABLE IF NOT EXISTS repo_runs (
@@ -212,6 +216,11 @@ def _migrate(conn):
     if version >= SCHEMA_VERSION:
         return
     conn.executescript(SCHEMA)
+    if 0 < version < 3:
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(days)")}
+        for col in ("covers_since", "covers_until", "collected_at", "catch_up_json"):
+            if col not in cols:
+                conn.execute(f"ALTER TABLE days ADD COLUMN {col} TEXT")
     if version > 0:
         # Nuove tabelle derivate dai report: azzera lo stato dell'import
         # incrementale così il prossimo sync reimporta tutti i giorni.
@@ -399,6 +408,7 @@ def ingest_day(day: str, reports_dir: Path = REPORTS_DIR, db_path: Path = None) 
 
     stats = {"day": day, "commits": 0, "reviews": 0, "findings": 0, "documents": 0}
     day_errors, day_scores, day_commits = [], [], 0
+    cover = {"since": None, "until": None, "collected": None, "catch_up": None}
 
     with _write_lock, connect(db_path) as conn:
         for jp in sorted(day_dir.glob("*-commits.json")):
@@ -407,6 +417,13 @@ def ingest_day(day: str, reports_dir: Path = REPORTS_DIR, db_path: Path = None) 
                 continue
             name = data.get("name") or jp.name[:-len("-commits.json")]
             errors = [e.splitlines()[0] for e in data.get("errors", []) if e]
+            cov = data.get("coverage") or {}
+            if cov.get("since") and (cover["since"] is None or cov["since"] < cover["since"]):
+                cover["since"] = cov["since"]
+            if cov.get("until") and (cover["until"] is None or cov["until"] > cover["until"]):
+                cover["until"] = cov["until"]
+            cover["collected"] = data.get("collected_at") or cover["collected"]
+            cover["catch_up"] = data.get("catch_up") or cover["catch_up"]
             day_errors.extend(f"[{name}] {e}" for e in errors)
             if data.get("path"):
                 conn.execute("INSERT INTO repos(name, path) VALUES (?, ?) "
@@ -504,11 +521,13 @@ def ingest_day(day: str, reports_dir: Path = REPORTS_DIR, db_path: Path = None) 
             quality = round(sum(day_scores) / len(day_scores), 1)
         conn.execute("""
             INSERT OR REPLACE INTO days(date, generated_at, commits, quality_avg, fetch_ok, errors_json,
-                has_model, has_dashboard, ingested_at)
-            VALUES (?,?,?,?,?,?,?,?,?)
+                has_model, has_dashboard, ingested_at, covers_since, covers_until, collected_at, catch_up_json)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (day, (model or {}).get("generated_at"), day_commits, quality, 0 if day_errors else 1,
               json.dumps(day_errors, ensure_ascii=False), 1 if model else 0,
-              1 if (day_dir / "dashboard.html").exists() else 0, _now()))
+              1 if (day_dir / "dashboard.html").exists() else 0, _now(),
+              cover["since"], cover["until"], cover["collected"],
+              json.dumps(cover["catch_up"], ensure_ascii=False) if cover["catch_up"] else None))
 
         _record_sources(conn, _day_files(day_dir))
         _bump(conn)
@@ -661,6 +680,8 @@ def load_dataset(db_path: Path = None) -> dict:
                 "has_model": bool(d["has_model"]), "quality": d["quality_avg"],
                 "docs": [n for n in ("digest.md", "briefing.md", "daily-summary.md") if n in names]
                         + (["dashboard.html"] if d["has_dashboard"] else []),
+                "covers_since": d["covers_since"], "covers_until": d["covers_until"],
+                "catch_up": json.loads(d["catch_up_json"]) if d["catch_up_json"] else None,
             })
         repos = [{"name": r["name"], "path": r["path"]}
                  for r in conn.execute("SELECT * FROM repos ORDER BY name")]

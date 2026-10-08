@@ -38,7 +38,9 @@ def quality_label(score: int) -> str:
 def generate_report(repo_reports: list, repo_reviews: list,
                     target_date: str, reports_dir: str,
                     trend_days: int = 7,
-                    kb_section: str = "") -> str:
+                    kb_section: str = "",
+                    range_label: str = None,
+                    notice: str = "") -> str:
     """
     Genera il report giornaliero completo in formato Markdown.
 
@@ -49,6 +51,8 @@ def generate_report(repo_reports: list, repo_reviews: list,
         reports_dir: directory base dei report
         trend_days: giorni di storico per il trend
         kb_section: se presente, sezione KB da aggiungere al report
+        range_label: intervallo coperto, se diverso dal giorno intero (recupero)
+        notice: sezione Markdown in testa al report (recupero run saltate)
 
     Returns:
         Path del file report generato
@@ -60,8 +64,10 @@ def generate_report(repo_reports: list, repo_reviews: list,
     lines.append(f"# 📋 Daily Code Review — {target_date}")
     lines.append(f"")
     lines.append(f"> Generato il {now}")
-    lines.append(f"> Range: {target_date} 00:00 → 23:59")
+    lines.append(f"> Range: {range_label or f'{target_date} 00:00 → 23:59'}")
     lines.append(f"")
+    if notice:
+        lines.append(notice)
 
     # ── RIEPILOGO RAPIDO ──
     total_commits = sum(len(r.commits) for r in repo_reports)
