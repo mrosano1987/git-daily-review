@@ -17,6 +17,17 @@ Run a review:
 - Last N days: `python3 scripts/daily_review.py --days N`
 - Git data only (fast, no AI): add `--collect-only`
 
+Skipped runs: every scheduled run first recovers skipped workdays (no
+report, failed `git fetch`, or run before the scheduled hour) in ONE run
+over the whole interval, up to 6 without asking; older ones are flagged in
+today's report as awaiting confirmation. When a digest is written and
+today's report contains "🔁 Controllo run saltate", carry that note into
+the digest (what was recovered, which runs await a decision). Commands:
+`--catch-up-check` (plan only), `--catch-up-only [--catch-up-all]`,
+`--catch-up-ignore-before YYYY-MM-DD`, `--no-catch-up`. Never run
+`--catch-up-all` or `--catch-up-ignore-before` autonomously: they are the
+user's decision.
+
 Reports:
 - Read `reports/<YYYY-MM-DD>/daily-summary.md` for a day's findings
 - Read `reports/INDEX.md` for the history index and quality trend

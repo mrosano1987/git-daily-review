@@ -40,6 +40,12 @@ class RepoReport:
     commits: list = field(default_factory=list)
     errors: list = field(default_factory=list)
     fetch_ok: bool = False
+    # Intervallo effettivamente coperto dalla raccolta (ISO, ora locale) e
+    # istante della raccolta: servono al controllo delle run saltate.
+    since: str = ""
+    until: str = ""
+    collected_at: str = ""
+    catch_up: dict = field(default_factory=dict)   # solo per le run di recupero
 
 
 def run_git(repo_path: str, args: list[str], timeout: int = 60) -> tuple[str, str, int]:
@@ -107,15 +113,22 @@ def get_remote_branches(repo_path: str, remote: str = "origin",
     return branches
 
 
-def get_commits_for_date(repo_path: str, branch: str, target_date: str,
-                         remote: str = "origin") -> list[CommitInfo]:
-    """
-    Recupera i commit di un branch per una data specifica.
-    target_date: formato YYYY-MM-DD
-    """
-    since = f"{target_date}T00:00:00"
+def day_bounds(target_date: str) -> tuple[str, str]:
+    """Intervallo [00:00, 00:00 del giorno dopo) di una data YYYY-MM-DD."""
     until_date = datetime.strptime(target_date, "%Y-%m-%d") + timedelta(days=1)
-    until = until_date.strftime("%Y-%m-%dT00:00:00")
+    return f"{target_date}T00:00:00", until_date.strftime("%Y-%m-%dT00:00:00")
+
+
+def get_commits_for_date(repo_path: str, branch: str, target_date: str,
+                         remote: str = "origin", since: str = None,
+                         until: str = None) -> list[CommitInfo]:
+    """
+    Recupera i commit di un branch per una data specifica (YYYY-MM-DD), o
+    per l'intervallo since → until se indicato (run di recupero).
+    """
+    day_since, day_until = day_bounds(target_date)
+    since = since or day_since
+    until = until or day_until
 
     # Format: hash|short_hash|author|email|date|message
     log_format = "%H|%h|%an|%ae|%aI|%s"
@@ -214,7 +227,10 @@ def get_commit_diff(repo_path: str, commit_hash: str, max_lines: int = 500) -> s
 
 def collect_repo(repo_config: dict, target_date: str,
                  collect_diffs: bool = True,
-                 min_diff_lines: int = 5) -> RepoReport:
+                 min_diff_lines: int = 5,
+                 since: str = None, until: str = None,
+                 exclude_hashes: set = None,
+                 fetch: bool = True) -> RepoReport:
     """
     Raccoglie tutti i commit di un repository per una data specifica.
 
@@ -223,6 +239,9 @@ def collect_repo(repo_config: dict, target_date: str,
         target_date: data in formato YYYY-MM-DD
         collect_diffs: se raccogliere anche i diff (per analisi AI)
         min_diff_lines: soglia minima di righe per raccogliere il diff
+        since, until: intervallo esplicito (ISO) al posto del giorno intero
+        exclude_hashes: commit da saltare perché già revisionati
+        fetch: False se il fetch è già stato fatto dal chiamante
     """
     name = repo_config["name"]
     path = os.path.expanduser(repo_config["path"])
@@ -230,7 +249,11 @@ def collect_repo(repo_config: dict, target_date: str,
     filter_branches = repo_config.get("branches", [])
     exclude_branches = repo_config.get("exclude_branches", [])
 
-    report = RepoReport(name=name, path=path, date=target_date)
+    day_since, day_until = day_bounds(target_date)
+    report = RepoReport(name=name, path=path, date=target_date,
+                        since=since or day_since, until=until or day_until,
+                        collected_at=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
+    exclude_hashes = exclude_hashes or set()
 
     # Verifica che il path esista
     if not os.path.isdir(path):
@@ -238,7 +261,7 @@ def collect_repo(repo_config: dict, target_date: str,
         return report
 
     # Fetch
-    ok, err = fetch_all(path)
+    ok, err = fetch_all(path) if fetch else (True, "")
     report.fetch_ok = ok
     if not ok:
         report.errors.append(err)
@@ -260,10 +283,11 @@ def collect_repo(repo_config: dict, target_date: str,
     seen_hashes = set()  # Evita duplicati (commit presenti su più branch)
 
     for branch in all_branches:
-        commits = get_commits_for_date(path, branch, target_date, remote)
+        commits = get_commits_for_date(path, branch, target_date, remote,
+                                       since=report.since, until=report.until)
 
         for commit in commits:
-            if commit.hash in seen_hashes:
+            if commit.hash in seen_hashes or commit.hash in exclude_hashes:
                 continue
             seen_hashes.add(commit.hash)
 
@@ -300,6 +324,9 @@ def save_report_json(report: RepoReport, output_dir: str, repo_key: str):
         "fetch_ok": report.fetch_ok,
         "branches_scanned": report.branches_scanned,
         "errors": report.errors,
+        "coverage": {"since": report.since, "until": report.until},
+        "collected_at": report.collected_at,
+        **({"catch_up": report.catch_up} if report.catch_up else {}),
         "commits": [asdict(c) for c in report.commits],
         "stats": {
             "total_commits": len(report.commits),

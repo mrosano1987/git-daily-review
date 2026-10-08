@@ -733,6 +733,8 @@ def render_html(model: dict, digest_md: str = "") -> str:
     # che deve diventare un h3 sotto l'h2 della pagina.
     kb_html = md_to_html(model.get("kb_section", ""), heading_offset=1)
     kb_block = (f'<section class="card prose">{kb_html}</section>' if kb_html else "")
+    notice_html = md_to_html(model.get("notice", ""), heading_offset=0)
+    notice_block = (f'<section class="card prose">{notice_html}</section>' if notice_html else "")
 
     return _PAGE.format(
         date=date,
@@ -749,7 +751,7 @@ def render_html(model: dict, digest_md: str = "") -> str:
         sev_filter_disabled="" if sev_opts else " disabled",
         repos="".join(repo_sections),
         commit_table=commit_table,
-        digest=digest_block,
+        digest=notice_block + digest_block,
         kb=kb_block,
         css=_CSS,
         js=_JS,
@@ -1257,13 +1259,14 @@ _PAGE = """<!DOCTYPE html>
 
 def generate_html_report(repo_reports: list, repo_reviews: list, target_date: str,
                          reports_dir: str, trend_days: int = 7,
-                         kb_section: str = "") -> str:
+                         kb_section: str = "", notice: str = "") -> str:
     """
     Genera dashboard.html (+ dashboard-data.json) per la data indicata.
     Chiamata dall'engine dopo la scrittura del report Markdown.
     """
     model = build_model(repo_reports, repo_reviews, target_date,
                         reports_dir, trend_days, kb_section)
+    model["notice"] = notice
 
     output_dir = Path(reports_dir) / target_date
     output_dir.mkdir(parents=True, exist_ok=True)

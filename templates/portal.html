@@ -277,6 +277,9 @@ table.t th { text-transform: uppercase; letter-spacing: .04em; font-size: 11px; 
 .diff { border-radius: 4px; }
 .banner { border-radius: 4px; }
 
+.banner.rec { background: var(--accent-soft, var(--surface-2)); border-color: var(--accent); }
+.day .flag.rec { color: var(--accent); }
+
 /* Briefing */
 .blist { max-height: 760px; overflow-y: auto; }
 .bitem { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 4px; text-decoration: none; color: inherit; border: 1px solid transparent; margin-bottom: 4px; }
@@ -1241,6 +1244,7 @@ function dayCard(d) {
   return '<a class="day ' + (d.fetch_ok ? "" : "fail") + '" href="#/reports/' + d.date + '"><div class="top"><span class="wd">' + GIORNI[(parseDay(d.date).getDay() + 6) % 7] + '</span><span class="dd">' + dm(d.date) + '</span><span class="n">' + d.commits + ' commit</span></div>' +
     '<div class="qr"><span>Quality</span><strong>' + (d.quality != null ? fmtN(d.quality, 1) : "—") + '</strong><span class="trk"><i style="width:' + qp + '%"></i></span></div>' +
     (d.fetch_ok ? "" : '<span class="flag">⚠ Raccolta git fallita — dati parziali</span>') +
+    (d.catch_up ? '<span class="flag rec">🔁 Recupero di ' + d.catch_up.recovered.length + ' run saltate</span>' : "") +
     (sev ? '<div class="sevs">' + sev + '</div>' : "") + '<div class="meta">' + docs + '</div></a>';
 }
 async function viewDay(date) {
@@ -1261,6 +1265,10 @@ async function viewDay(date) {
       <h1 style="margin:0 8px">${GIORNI[(parseDay(date).getDay() + 6) % 7]} ${dm(date)}/${date.slice(0, 4)}</h1>
       ${doc.has_dashboard ? `<a class="btn" style="margin-left:auto" href="/reports/${date}/dashboard.html" target="_blank" rel="noopener">Apri dashboard del giorno ↗</a>` : ""}</div>
     ${meta.fetch_ok === false ? `<div class="banner">⚠ Raccolta git fallita: ${meta.errors.map(esc).join("<br>")}</div>` : ""}
+    ${meta.catch_up ? `<div class="banner rec">🔁 <b>Run di recupero</b>: copre ${meta.catch_up.recovered.length} run saltate
+      (${meta.catch_up.recovered.map(r => `${dm(r.day)} — ${esc(r.reason)}`).join(", ")}),
+      intervallo ${esc((meta.covers_since || "").replace("T", " ").slice(0, 16))} → ${esc((meta.covers_until || "").replace("T", " ").slice(0, 16))}.
+      ${meta.catch_up.pending.length ? `<br>⚠ ${meta.catch_up.pending.length} run più vecchie in attesa di conferma (${meta.catch_up.pending.map(r => dm(r.day)).join(", ")}).` : ""}</div>` : ""}
     <div class="grid">
       <section class="card w3"><div class="kpi"><div class="l">Commit</div><div class="v">${cs.length}</div><div class="d">${cs.filter(c => c.reviewed).length} revisionati</div></div></section>
       <section class="card w3"><div class="kpi"><div class="l">Quality media</div><div class="v">${fmtN(meta.quality, 1)}<span class="muted" style="font-size:15px;font-weight:400">/10</span></div></div></section>

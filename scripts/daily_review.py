@@ -35,7 +35,8 @@ ensure_deps()
 
 import yaml
 
-from git_collector import collect_repo, save_report_json
+from git_collector import collect_repo, save_report_json, fetch_all
+import catch_up
 from ai_reviewer import review_commits
 from report_generator import generate_report, generate_history_index
 from html_report import generate_html_report
@@ -129,10 +130,18 @@ def check_prerequisites(config: dict):
         return False
     return True
 
-def run_review(target_date: str, config: dict, collect_only: bool = False):
-    """Esegue la review per una data specifica."""
+def run_review(target_date: str, config: dict, collect_only: bool = False,
+               since: str = None, until: str = None, exclude_hashes: set = None,
+               catch_up: dict = None, notice: str = "", fetch: bool = True):
+    """
+    Esegue la review per una data specifica.
+
+    Con since/until la raccolta copre un intervallo invece del giorno intero
+    (run di recupero): il report va comunque in reports/<target_date>/.
+    """
+    title = "🔁 Run di recupero" if catch_up else "📋 Daily Code Review"
     print(f"\n{C.BOLD}{C.HEADER}{'='*60}{C.END}")
-    print(f"{C.BOLD}{C.HEADER}  📋 Daily Code Review — {target_date}{C.END}")
+    print(f"{C.BOLD}{C.HEADER}  {title} — {target_date}{C.END}")
     print(f"{C.BOLD}{C.HEADER}{'='*60}{C.END}\n")
 
     reports_dir = os.path.join(
@@ -157,8 +166,13 @@ def run_review(target_date: str, config: dict, collect_only: bool = False):
             repo_config,
             target_date,
             collect_diffs=not collect_only,
-            min_diff_lines=min_diff_lines
+            min_diff_lines=min_diff_lines,
+            since=since, until=until,
+            exclude_hashes=exclude_hashes,
+            fetch=fetch,
         )
+        if catch_up:
+            report.catch_up = catch_up
         repo_reports.append(report)
 
         # Salva JSON raw
@@ -280,10 +294,13 @@ def run_review(target_date: str, config: dict, collect_only: bool = False):
     # Genera report Markdown
     print(f"\n{C.CYAN}▸ Generazione report...{C.END}")
     trend_days = config.get("reports", {}).get("trend_days", 7)
+    range_label = (f"{since.replace('T', ' ')[:16]} → {until.replace('T', ' ')[:16]}"
+                   if since and until else None)
     report_path = generate_report(
         repo_reports, repo_reviews,
         target_date, reports_dir, trend_days,
         kb_section=kb_section,
+        range_label=range_label, notice=notice,
     )
     print(f"  {C.GREEN}✓{C.END} Report salvato: {report_path}")
 
@@ -292,7 +309,7 @@ def run_review(target_date: str, config: dict, collect_only: bool = False):
         dashboard_path = generate_html_report(
             repo_reports, repo_reviews,
             target_date, reports_dir, trend_days,
-            kb_section=kb_section,
+            kb_section=kb_section, notice=notice,
         )
         print(f"  {C.GREEN}✓{C.END} Dashboard: {dashboard_path}")
     except Exception as e:
@@ -337,6 +354,70 @@ def show_history(config: dict, from_date: str = None, to_date: str = None):
     print(content)
 
 
+def _run_hour(config: dict) -> int:
+    """Ora da cui la run di un giorno conta come completa: un'ora prima di quella pianificata."""
+    hour = int((config.get("schedule") or {}).get("hour", 17))
+    return max(0, hour - 1)
+
+
+def run_catch_up(config: dict, reports_dir: str, today: str, recover_all: bool = False) -> str:
+    """
+    Controllo preventivo delle run saltate e recupero in un'unica run.
+    Ritorna la nota da inserire nel report di oggi ("" se non c'è nulla da dire).
+    """
+    print(f"\n{C.CYAN}▸ Controllo run saltate...{C.END}")
+    plan = catch_up.plan(Path(reports_dir), today, _run_hour(config), recover_all=recover_all)
+    if not plan.skipped:
+        print(f"  {C.GREEN}✓{C.END} Nessuna run saltata")
+        return ""
+    print(catch_up.describe(plan))
+
+    if plan.pending and sys.stdin.isatty():
+        answer = input(f"\n{C.YELLOW}Ci sono {len(plan.pending)} run saltate oltre il limite di "
+                       f"{catch_up.MAX_AUTO} (la più vecchia è del {plan.pending[0].day}). "
+                       f"Recuperare anche quelle? [s/N] {C.END}").strip().lower()
+        if answer in ("s", "si", "sì", "y", "yes"):
+            catch_up.include_pending(plan)
+    if not plan.recover:
+        return catch_up.today_notice(plan, "none")
+
+    # Fetch prima di tutto: con dati non aggiornati il recupero sarebbe un altro falso negativo.
+    for key, repo in config.get("repositories", {}).items():
+        ok, err = fetch_all(os.path.expanduser(repo["path"]))
+        if not ok:
+            print(f"  {C.YELLOW}⚠{C.END} Recupero rimandato: fetch fallito su {repo['name']}: {err.splitlines()[0]}")
+            return catch_up.today_notice(plan, "postponed")
+
+    # Commit già revisionati: esclusi dalla run unica.
+    reviewed, excluded = set(), 0
+    try:
+        import review_db
+        review_db.sync(Path(reports_dir))
+        with review_db.connect() as conn:
+            reviewed = {r[0] for r in conn.execute("SELECT hash FROM reviews")}
+            excluded = conn.execute(
+                "SELECT COUNT(*) FROM reviews r JOIN commits c ON c.repo = r.repo AND c.hash = r.hash "
+                "WHERE c.date >= ? AND c.date < ?", (plan.since, plan.until)).fetchone()[0]
+    except Exception as e:
+        print(f"  {C.YELLOW}⚠{C.END} Base dati non disponibile ({e}): nessun commit escluso")
+
+    # Il digest già presente nella cartella descrive la run sostituita: lo archiviamo,
+    # così non resta agganciato al nuovo report (né alla sua dashboard).
+    old_digest = Path(reports_dir) / plan.folder / "digest.md"
+    if old_digest.exists():
+        old_digest.replace(old_digest.with_name("digest-pre-recupero.md"))
+
+    try:
+        run_review(plan.folder, config, since=plan.since, until=plan.until,
+                   exclude_hashes=reviewed, catch_up=catch_up.catch_up_meta(plan),
+                   notice=catch_up.recovery_notice(plan, excluded), fetch=False)
+    except Exception as e:
+        print(f"  {C.RED}✗{C.END} Recupero fallito: {e}")
+        return catch_up.today_notice(plan, "failed")
+    catch_up.mark_done(plan)
+    return catch_up.today_notice(plan, "done")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Daily Code Review Routine — Git Daily Review",
@@ -368,6 +449,31 @@ Esempi:
         help="Solo raccolta commit, senza analisi AI"
     )
     parser.add_argument(
+        "--no-catch-up",
+        action="store_true",
+        help="Salta il controllo preventivo delle run saltate"
+    )
+    parser.add_argument(
+        "--catch-up-check",
+        action="store_true",
+        help="Mostra le run saltate e il piano di recupero, senza eseguire nulla"
+    )
+    parser.add_argument(
+        "--catch-up-only",
+        action="store_true",
+        help="Esegue solo il recupero delle run saltate (non la review di oggi)"
+    )
+    parser.add_argument(
+        "--catch-up-all",
+        action="store_true",
+        help=f"Recupera tutte le run saltate, anche oltre il limite di {catch_up.MAX_AUTO}"
+    )
+    parser.add_argument(
+        "--catch-up-ignore-before",
+        metavar="YYYY-MM-DD",
+        help="Non segnalare più le run saltate prima di questa data"
+    )
+    parser.add_argument(
         "--history",
         action="store_true",
         help="Mostra l'indice storico dei report"
@@ -393,6 +499,18 @@ Esempi:
         show_history(config, args.from_date, args.to_date)
         return
 
+    if args.catch_up_ignore_before:
+        catch_up.ignore_before(args.catch_up_ignore_before)
+        print(f"{C.GREEN}✓{C.END} Run saltate prima del {args.catch_up_ignore_before} non più segnalate")
+        return
+
+    reports_dir = os.path.join(ROOT_DIR, config.get("reports", {}).get("output_dir", "./reports"))
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    if args.catch_up_check:
+        print(catch_up.describe(catch_up.plan(Path(reports_dir), today_str, _run_hour(config),
+                                              recover_all=args.catch_up_all)))
+        return
+
     # Verifica prerequisiti
     if not args.collect_only and not check_prerequisites(config):
         print(f"{C.YELLOW}Usa --collect-only per procedere senza API key{C.END}")
@@ -410,10 +528,19 @@ Esempi:
     else:
         dates = [datetime.now().strftime("%Y-%m-%d")]
 
+    # Controllo preventivo: solo per la run pianificata (oggi, senza --date/--days)
+    notice = ""
+    scheduled_run = not (args.days or args.date or args.collect_only)
+    if (scheduled_run or args.catch_up_only) and not args.no_catch_up:
+        notice = run_catch_up(config, reports_dir, today_str, recover_all=args.catch_up_all)
+    if args.catch_up_only:
+        return
+
     # Esegui review per ogni data
     for date in dates:
         try:
-            run_review(date, config, collect_only=args.collect_only)
+            run_review(date, config, collect_only=args.collect_only,
+                       notice=notice if date == today_str else "")
         except KeyboardInterrupt:
             print(f"\n{C.YELLOW}Interrotto dall'utente.{C.END}")
             sys.exit(0)
