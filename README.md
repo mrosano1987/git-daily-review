@@ -196,6 +196,26 @@ State lives in `data/autofix.json`; per-day output in
 `reports/<day>/autofix.md` and `reports/<day>/autofix/*-review-N.md`.
 Tests: `python3 -m unittest discover -s tests`.
 
+### One daily run, any agent harness
+
+The whole routine (RAG and Confluence ingest, review, digest, next-morning
+briefing, autofix) is the `daily-agent` skill, in `.agents/skills/` (read by
+Antigravity and other harnesses) and `.claude/skills/`. Site values live in
+`routine/agent.yaml` (template `routine/agent.example.yaml`, git-ignored copy).
+
+Schedule it on more than one harness — e.g. Claude Code at 17:00 and
+Antigravity at 19:30 as a backup for days when the first app is closed or its
+credit runs out. `scripts/agent_run.py begin|end --harness X` makes sure only
+one run completes the day: the backup exits at once if the day is done, waits
+if a run is in progress, and takes over a run that went stale.
+
+The autofix reviewer can have backups too (`reviewer.fallbacks` in
+`routine/autofix.yaml`): they are tried in order only when the previous one
+gives no complete answer (credit exhausted, error, timeout); a real negative
+verdict is final. `format: agy-json` reads `agy -p … --output-format json`.
+In headless mode Antigravity cannot ask for permissions, so pass the reviewed
+repositories with `--add-dir` (files outside the workspace are denied).
+
 ---
 
 ## MCP server (use it as an agent)
@@ -294,6 +314,7 @@ git-daily-review/
 │   ├── html_report.py          ← self-contained HTML dashboard (charts, filters)
 │   ├── catch_up.py             ← skipped-run detection and single-run recovery
 │   ├── autofix.py              ← findings → worktree fix → bot review → PR (gated)
+│   ├── agent_run.py            ← one completed daily run across harnesses (lock + marker)
 │   ├── portal.py               ← local web portal (HTTP server, read-only API)
 │   ├── review_db.py            ← SQLite review database: schema, import from reports, queries
 │   ├── portal_data.py          ← git-flow layout, releases, git show fallback
@@ -302,6 +323,7 @@ git-daily-review/
 ├── mcp/                        ← MCP server (TypeScript)
 │   └── src/index.ts
 ├── routine/
+│   ├── agent.example.yaml      ← daily-agent site values template (copy to agent.yaml)
 │   └── autofix.example.yaml    ← autofix settings template (copy to autofix.yaml)
 ├── tests/                      ← python3 -m unittest discover -s tests
 ├── templates/

@@ -87,6 +87,8 @@ DEFAULTS = {
         "command": ["pa", "bot", "ask", "--as", "dev", "--show", "--profile", "{profile}"],
         "timeout": 1200,
         "max_diff_chars": 14000,
+        "format": "pa-bot",
+        "fallbacks": [],
     },
     "repos": {},
 }
@@ -357,26 +359,61 @@ def build_question(att: dict, diff: str, rationale: str, max_chars: int) -> str:
     )
 
 
-def parse_review(output: str) -> dict:
-    """Esito della revisione: approvata solo con risposta completa, verdetto esplicito e confidenza non bassa."""
-    header = HEADER_RX.match(output.strip())
-    status = header.group(1).lower() if header else "unknown"
-    request_id = header.group(2) if header else None
-    body = output.split("━━", 2)[-1] if "━━ BOZZA" in output else output
+ANSWERED = ("answered", "draft", "escalated")   # risposte complete: il verdetto vale, anche se negativo
+
+
+def parse_review(output: str, fmt: str = "pa-bot") -> dict:
+    """Esito della revisione: approvata solo con risposta completa, verdetto esplicito e confidenza non bassa.
+
+    Formati: `pa-bot` (intestazione `[answered #id · …]`, bozza dopo `━━ BOZZA`) e
+    `agy-json` (`agy -p … --output-format json`: `{"status": "SUCCESS", "response": …}`).
+    """
+    if fmt == "agy-json":
+        try:
+            data = json.loads(output[output.index("{"):])
+        except ValueError:
+            data = {}
+        ok = data.get("status") == "SUCCESS" and data.get("response")
+        status = "answered" if ok else f"error:{data.get('status') or 'output non valido'}"
+        request_id, body = data.get("conversation_id"), data.get("response") or ""
+    else:
+        header = HEADER_RX.match(output.strip())
+        status = header.group(1).lower() if header else "unknown"
+        request_id = header.group(2) if header else None
+        body = output.split("━━", 2)[-1] if "━━ BOZZA" in output else output
     verdicts = VERDICT_RX.findall(body)
     verdict = verdicts[-1].upper() if verdicts else None
     approved, reason = False, ""
     if status not in ("answered", "draft"):
-        reason = f"il bot non ha dato una risposta completa (stato: {status})"
+        reason = f"il revisore non ha dato una risposta completa (stato: {status})"
     elif not verdict:
         reason = "nessun verdetto esplicito nella risposta"
     elif LOW_CONFIDENCE_RX.search(body):
-        reason = "il bot dichiara confidenza bassa"
+        reason = "il revisore dichiara confidenza bassa"
     elif verdict != "APPROVATO":
         reason = f"verdetto {verdict}"
     else:
         approved = True
-    return {"status": status, "request_id": request_id, "verdict": verdict, "approved": approved, "reason": reason}
+    return {"status": status, "request_id": request_id, "verdict": verdict, "approved": approved,
+            "reason": reason, "body": body.strip()}
+
+
+def _reviewers(rv: dict) -> list:
+    """Revisore principale e riserve, nell'ordine in cui provarli."""
+    main = {k: rv[k] for k in ("name", "command", "format", "timeout") if k in rv}
+    return [main] + [{"timeout": rv["timeout"], "format": "pa-bot", **f} for f in rv.get("fallbacks") or []]
+
+
+def _ask(reviewer: dict, profile: str, question: str) -> tuple:
+    prompt = (reviewer.get("preamble") or "").replace("{profile}", profile) + question
+    argv = [a.replace("{profile}", profile) for a in reviewer["command"]] + [prompt]
+    cwd = os.path.expanduser(reviewer["cwd"]) if reviewer.get("cwd") else None
+    try:
+        r = subprocess.run(argv, capture_output=True, text=True, timeout=int(reviewer["timeout"]), cwd=cwd)
+        output = (r.stdout or "") + (("\n" + r.stderr) if r.returncode and r.stderr else "")
+    except (OSError, subprocess.TimeoutExpired) as e:
+        output = f"[error] {type(e).__name__}: {e}"
+    return output, parse_review(output, reviewer.get("format", "pa-bot"))
 
 
 def review(cfg: dict, cid: str, rationale: str) -> dict:
@@ -395,29 +432,33 @@ def review(cfg: dict, cid: str, rationale: str) -> dict:
     rv = cfg["reviewer"]
     diff = git(att["worktree"], "diff", "-U8", f"{att['base_sha']}..HEAD")
     question = build_question(att, diff, rationale, int(rv["max_diff_chars"]))
-    argv = [a.replace("{profile}", profile) for a in rv["command"]] + [question]
-    try:
-        r = subprocess.run(argv, capture_output=True, text=True, timeout=int(rv["timeout"]))
-        output = (r.stdout or "") + (("\n" + r.stderr) if r.returncode and r.stderr else "")
-    except (OSError, subprocess.TimeoutExpired) as e:
-        output = f"[error] {type(e).__name__}: {e}"
-    result = parse_review(output)
+    failed = []
+    for reviewer in _reviewers(rv):
+        output, result = _ask(reviewer, profile, question)
+        if result["status"] in ANSWERED:
+            break
+        failed.append((reviewer["name"], result["status"], output.strip()[-800:]))
     round_no = len(att["reviews"]) + 1
+    shown = output.strip() if reviewer.get("format", "pa-bot") == "pa-bot" else result["body"]
 
     out_dir = REPORTS_DIR / att["run_day"] / "autofix"
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{cid.replace('@', '-')}-review-{round_no}.md"
+    tried = "".join(f"\n### {n} — {st}\n\n```\n{out}\n```\n" for n, st, out in failed)
     path.write_text(f"# Revisione {round_no} — {cid}\n\nCommit revisionato: `{head}`\n\n"
                     f"Esito: **{result['verdict'] or '—'}** · approvata: {result['approved']}"
                     f"{' · ' + result['reason'] if result['reason'] else ''}\n\n"
-                    f"## Motivazione inviata\n\n{rationale}\n\n## Risposta del {rv['name']}\n\n{output.strip()}\n",
+                    f"## Motivazione inviata\n\n{rationale}\n\n"
+                    + (f"## Revisori non disponibili\n{tried}\n" if failed else "")
+                    + f"## Risposta del {reviewer['name']}\n\n{shown}\n",
                     encoding="utf-8")
-    att["reviews"].append({**result, "round": round_no, "sha": head, "at": _now(),
+    result.pop("body", None)
+    att["reviews"].append({**result, "round": round_no, "sha": head, "at": _now(), "reviewer": reviewer["name"],
                            "rationale": rationale, "file": str(path)})
     att["status"] = "approved" if result["approved"] else "review_changes"
-    _log(att, "review", sha=head, verdict=result["verdict"], approved=result["approved"])
+    _log(att, "review", sha=head, verdict=result["verdict"], approved=result["approved"], reviewer=reviewer["name"])
     save_state(state)
-    return {**result, "round": round_no, "file": str(path), "output": output}
+    return {**result, "round": round_no, "reviewer": reviewer["name"], "file": str(path), "output": output}
 
 
 # ══════════════════════════════════════════════════════════════
@@ -460,7 +501,7 @@ def _pr_body(att: dict, cfg: dict) -> str:
         f"del {att['day']} sul commit `{att['hash'][:9]}` ({att.get('author') or '?'}).\n\n"
         f"## Finding\n{findings}\n\n## Cosa cambia e perché\n{rv['rationale']}\n\n"
         f"## Controlli\n- diff: {len(att['check']['stats']['files'])} file, {att['check']['stats']['lines']} righe\n{checks}\n\n"
-        f"## Revisione del {cfg['reviewer']['name']} (round {rv['round']}, verdetto {rv['verdict']})\n\n{review_text}\n\n"
+        f"## Revisione di {rv.get('reviewer') or cfg['reviewer']['name']} (round {rv['round']}, verdetto {rv['verdict']})\n\n{review_text}\n\n"
         "---\nNessun merge automatico: questa PR va rivista e unita da una persona."
     )
 
