@@ -47,8 +47,10 @@ If it is missing, stop and say so.
    `python3 scripts/autofix.py abandon <id> --reason "…"`.
 7. **Publish** — `python3 scripts/autofix.py publish <id> --dry-run`, then
    without `--dry-run` if there are no blocks. This pushes **only** the
-   `autofix/…` branch and opens the PR toward the commit's branch. Never
-   push in any other way, never merge, never force-push.
+   `autofix/…` branch and opens the PR toward the commit's branch. Without
+   a PR token it reports a "create pull request" link and saves the PR
+   description to paste: list both in the final output. Never push in any
+   other way, never merge, never force-push.
 8. **Report** — `python3 scripts/autofix.py report` writes
    `reports/<today>/autofix.md`. Summarise it in the final output: PRs
    opened (with links), findings skipped/abandoned and why.

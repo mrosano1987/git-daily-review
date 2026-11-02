@@ -473,7 +473,7 @@ def _open_pr_bitbucket(att, cfg, pr_cfg, title, body):
                f"{urllib.parse.quote(att['branch'], safe='')}&dest={urllib.parse.quote(att['base_branch'], safe='')}")
     token = _secret(pr_cfg)
     if not token:
-        return None, f"token Bitbucket non disponibile: apri la PR da {new_url}"
+        return None, f"PR da aprire a mano (nessun token Bitbucket): {new_url}"
     user = pr_cfg.get("user") or (os.environ.get(pr_cfg["user_env"]) if pr_cfg.get("user_env") else None)
     auth = ("Basic " + base64.b64encode(f"{user}:{token}".encode()).decode()) if user else f"Bearer {token}"
     payload = {"title": title, "description": body, "close_source_branch": True,
@@ -560,6 +560,12 @@ def publish(cfg: dict, cid: str, day: str, dry_run: bool = False) -> dict:
     att["published_at"] = _now()
     att["pr_url"] = url
     att["pr_problem"] = problem
+    if not url:
+        # PR da aprire a mano: titolo e descrizione pronti da incollare
+        draft = REPORTS_DIR / att["run_day"] / "autofix" / f"{cid.replace('@', '-')}-pr.md"
+        draft.parent.mkdir(parents=True, exist_ok=True)
+        draft.write_text(f"# {title}\n\n{body}\n", encoding="utf-8")
+        att["pr_draft"] = str(draft)
     _log(att, att["status"], url=url, problem=problem)
     save_state(state)
     return {**plan, "status": att["status"], "pr_url": url, "problem": problem}
@@ -612,6 +618,8 @@ def render_report(day: str, state: dict = None) -> str:
             lines.append(f"- PR: {a['pr_url']}")
         if a.get("pr_problem"):
             lines.append(f"- ⚠️ {a['pr_problem']}")
+        if a.get("pr_draft"):
+            lines.append(f"- titolo e descrizione da incollare: [{Path(a['pr_draft']).name}](autofix/{Path(a['pr_draft']).name})")
         if a.get("reason"):
             lines.append(f"- motivo: {a['reason']}")
         if a.get("check") and a["check"].get("problems"):

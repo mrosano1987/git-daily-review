@@ -112,6 +112,16 @@ class AutofixTest(unittest.TestCase):
         self.assertEqual(sh(self.origin, "git", "rev-parse", "feature/x"), self.hash)
         report = autofix.write_report(DAY).read_text()
         self.assertIn("pushed", report)
+        # senza PR automatica la descrizione resta pronta da incollare
+        draft = Path(autofix.load_state()["attempts"][self.cid]["pr_draft"])
+        self.assertIn("Revisione del bot", draft.read_text())
+        self.assertIn(draft.name, report)
+
+    def test_bitbucket_without_token_gives_link(self):
+        att = {"repo_path": str(self.repo), "branch": "autofix/x", "base_branch": "feature/x"}
+        url, problem = autofix._open_pr_bitbucket(att, self.cfg, {"workspace": "ws", "repo_slug": "app"}, "t", "b")
+        self.assertIsNone(url)
+        self.assertIn("https://bitbucket.org/ws/app/pull-requests/new?source=autofix%2Fx&dest=feature%2Fx", problem)
 
     # ── varchi ─────────────────────────────────────────────────
     def test_publish_blocked_without_approval(self):

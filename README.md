@@ -180,6 +180,9 @@ the bot's feedback make sense):
   It then opens the PR on Bitbucket (REST API) or GitHub (`gh`) toward the
   branch of the original commit. The Bitbucket token is read from an
   environment variable or the macOS Keychain and never printed or stored.
+  Without a token (or when the API refuses it) the branch is still pushed and
+  the report links Bitbucket's "create pull request" page, with the title and
+  description ready to paste in `reports/<day>/autofix/<id>-pr.md`.
 
 Setup: copy `routine/autofix.example.yaml` to `routine/autofix.yaml`
 (git-ignored), list the repositories with their reviewer profile and PR host,
