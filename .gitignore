@@ -44,3 +44,6 @@ __MACOSX/
 # ── Autofix (local config, state and worktrees hold client data) ──
 routine/autofix.yaml
 .autofix/
+
+# ── Daily agent (local site values) ──
+routine/agent.yaml

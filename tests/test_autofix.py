@@ -114,7 +114,7 @@ class AutofixTest(unittest.TestCase):
         self.assertIn("pushed", report)
         # senza PR automatica la descrizione resta pronta da incollare
         draft = Path(autofix.load_state()["attempts"][self.cid]["pr_draft"])
-        self.assertIn("Revisione del bot", draft.read_text())
+        self.assertIn("Revisione di bot", draft.read_text())
         self.assertIn(draft.name, report)
 
     def test_bitbucket_without_token_gives_link(self):
@@ -174,6 +174,44 @@ class AutofixTest(unittest.TestCase):
         autofix.check(self.cfg, self.cid)
         autofix.review(self.cfg, self.cid, "r")
         self.assertTrue(any("massimo" in b for b in autofix.publish(self.cfg, self.cid, DAY)["blocks"]))
+
+    def use_fallback(self, verdict="APPROVATO"):
+        """Revisore principale senza credito, riserva in formato agy-json."""
+        backup = self.tmp / "agy.py"
+        backup.write_text(
+            "import json, sys\n"
+            "print(json.dumps({'status': 'SUCCESS', 'conversation_id': 'c1',"
+            f" 'response': 'Contesto verificato. ' + sys.argv[-1][:10] + ' VERDETTO: {verdict}'}}))\n")
+        self.cfg["reviewer"]["fallbacks"] = [{"name": "riserva", "format": "agy-json", "preamble": "Portale {profile}. ",
+                                              "command": [sys.executable, str(backup)]}]
+        self.reviewer.write_text("print('[error · limite di spesa raggiunto]')\n")
+
+    def test_fallback_reviewer_when_primary_unavailable(self):
+        self.use_fallback()
+        self.fix()
+        autofix.check(self.cfg, self.cid)
+        res = autofix.review(self.cfg, self.cid, "r")
+        self.assertTrue(res["approved"])
+        self.assertEqual(res["reviewer"], "riserva")
+        text = Path(res["file"]).read_text()
+        self.assertIn("Revisori non disponibili", text)
+        self.assertIn("Contesto verificato. Portale ap", text)     # il preambolo arriva al revisore
+        self.assertEqual(autofix.publish(self.cfg, self.cid, DAY, dry_run=True)["blocks"], [])
+
+    def test_no_fallback_after_a_real_verdict(self):
+        self.use_fallback()
+        self.set_verdict("MODIFICHE")
+        self.fix()
+        autofix.check(self.cfg, self.cid)
+        res = autofix.review(self.cfg, self.cid, "r")
+        self.assertFalse(res["approved"])
+        self.assertEqual(res["reviewer"], "bot")
+
+    def test_parse_agy_json(self):
+        ok = '{"status": "SUCCESS", "conversation_id": "x", "response": "ok\\nVERDETTO: APPROVATO"}'
+        self.assertTrue(autofix.parse_review(ok, "agy-json")["approved"])
+        self.assertFalse(autofix.parse_review('{"status": "ERROR"}', "agy-json")["approved"])
+        self.assertFalse(autofix.parse_review("not json", "agy-json")["approved"])
 
     def test_parse_review(self):
         out = "[answered #3 · profilo p]\nok\n\n━━ BOZZA #3 (costo $0.10) ━━\nAnalisi…\n**VERDETTO: APPROVATO**\n💡 hint"

@@ -1,0 +1,19 @@
+# Daily agent — valori del sito letti dalla skill `daily-agent`.
+# Copia in routine/agent.yaml (gitignored) e adatta.
+
+owner: Your Name                 # chi rivede le PR e riceve la notifica
+language: it                     # lingua di digest, briefing e notifica
+rag_url: http://localhost:8000
+ollama_url: http://localhost:11434
+
+confluence:                      # opzionale: ingest della documentazione nel RAG
+  site: example.atlassian.net
+  cloud_id: 00000000-0000-0000-0000-000000000000
+  space_key: DOCS
+  space_id: "123456"
+
+repos:                           # nome nel report → descrizione per digest e briefing
+  my-app: "app mobile (revisore: profilo my-app del bot)"
+
+notes:                           # vincoli del proprietario, validi per tutti gli harness
+  - "Esempio: su <harness> non usare lo strumento X del bot perché consuma il credito di un altro fornitore."

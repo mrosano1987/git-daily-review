@@ -28,6 +28,17 @@ reviewer:
   command: [pa, bot, ask, --as, dev, --show, --profile, "{profile}"]
   timeout: 1200
   max_diff_chars: 14000
+  format: pa-bot                   # pa-bot | agy-json (`agy -p … --output-format json`)
+  # Revisori di riserva, provati in ordine SOLO se il precedente non dà una risposta completa
+  # (credito esaurito, errore, timeout). Un verdetto negativo non passa mai alla riserva.
+  # fallbacks:
+  #   - name: bot (Antigravity)
+  #     format: agy-json
+  #     cwd: ~/Projects/my-bot          # cartella del progetto dell'harness
+  #     timeout: 900
+  #     # --add-dir: in headless i file fuori dal workspace non sono leggibili (permesso negato)
+  #     command: [agy, --mode, plan, --output-format, json, --print-timeout, 840s, --add-dir, ~/code/my-app, -p]
+  #     preamble: "Sei il bot del portale {profile}: usa solo strumenti in lettura. "
 
 # Un elemento per repository revisionato (il nome è quello del report).
 repos:
