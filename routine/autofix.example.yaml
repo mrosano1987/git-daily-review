@@ -1,0 +1,48 @@
+# Autofix — correzioni autonome dei finding con revisione del bot e PR.
+# Copia in routine/autofix.yaml (gitignored) e adatta. Vedi scripts/autofix.py.
+
+enabled: true
+
+# Quali finding l'agente può provare a correggere da solo.
+severities: [critical, error]
+# Regole di processo (es. commit su branch protetto): non si correggono nel codice.
+skip_rules: ["GIT-*"]
+lookback_days: 3          # finding degli ultimi N giorni ancora da trattare
+
+# Limiti duri, applicati dallo script indipendentemente dall'agente.
+max_prs_per_day: 2
+max_review_rounds: 2      # revisioni del bot per tentativo (la seconda dopo le modifiche richieste)
+max_files: 5
+max_lines: 150
+
+branch_prefix: autofix/
+# Dove creare i worktree dei fix. Deve essere scrivibile dalla sessione dell'agente.
+worktrees_dir: .autofix/worktrees
+protected_branches: [main, master, develop, "release/*"]
+
+# Revisione obbligatoria prima del push. Il comando riceve la domanda come ultimo argomento
+# e deve stampare la risposta con l'intestazione `[answered #id · …]` e una riga
+# `VERDETTO: APPROVATO | MODIFICHE | RESPINTO`. {profile} = reviewer_profile del repo.
+reviewer:
+  name: bot
+  command: [pa, bot, ask, --as, dev, --show, --profile, "{profile}"]
+  timeout: 1200
+  max_diff_chars: 14000
+
+# Un elemento per repository revisionato (il nome è quello del report).
+repos:
+  my-app:
+    # path: ~/code/my-app            # default: il percorso registrato nel database delle review
+    reviewer_profile: my-app         # profilo del bot che revisiona questo repo
+    # checks: comandi eseguiti nel worktree prima della revisione ({worktree}, {repo} = checkout principale)
+    # checks:
+    #   - [ln, -sfn, "{repo}/node_modules", "{worktree}/node_modules"]
+    #   - [npx, --no-install, tsc, --noEmit, -p, tsconfig.json]
+    pr:
+      host: bitbucket                # bitbucket | github | none (solo push)
+      # workspace: my-team           # default: ricavati dal remote origin
+      # repo_slug: my-app
+      # Token mai nel file: si legge dalla variabile d'ambiente o dal Portachiavi macOS.
+      token_env: BITBUCKET_TOKEN
+      keychain_service: git-daily-review-bitbucket
+      # user: me@example.com         # con un API token Atlassian (Basic auth); senza: Bearer (access token)

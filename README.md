@@ -148,6 +148,56 @@ live from the local clones.
 
 ---
 
+## Autofix: from findings to pull requests
+
+An agent run (the `autofix` project skill, usually as the last phase of the
+scheduled routine) can turn the day's critical/error findings into small
+fixes, each reviewed by a project bot and opened as a pull request. **Nothing
+is ever merged automatically**: the PR is where a person does the final review.
+
+```
+candidates → triage (fix | skip) → prepare (worktree on autofix/<day>-<hash>)
+          → fix + commit → check → bot review (VERDETTO: APPROVATO)
+          → publish (push the autofix branch + open PR) → report
+```
+
+`scripts/autofix.py` owns every step that must not be skipped; the agent only
+supplies the judgement (is the finding real, what is the minimal fix, does
+the bot's feedback make sense):
+
+- **candidates** come from the review database: configured severities only,
+  process rules such as `GIT-*` excluded, one candidate per commit, already
+  handled commits never come back;
+- **check** refuses uncommitted work, diffs over `max_files`/`max_lines`,
+  secrets and lock files, and runs the repository's own checks if configured;
+- **review** sends the findings, the rationale and the diff to the reviewer
+  command (by default `pa bot ask`) and approves only a complete answer that
+  ends with `VERDETTO: APPROVATO` — escalations and low confidence count as
+  "no". Rounds are capped;
+- **publish** is the only path to the remote. It pushes nothing unless the
+  approved review and a passing check both refer to the exact head commit,
+  the branch is an `autofix/…` branch, and today's PR cap is not reached.
+  It then opens the PR on Bitbucket (REST API) or GitHub (`gh`) toward the
+  branch of the original commit. The Bitbucket token is read from an
+  environment variable or the macOS Keychain and never printed or stored.
+  Without a token (or when the API refuses it) the branch is still pushed and
+  the report links Bitbucket's "create pull request" page, with the title and
+  description ready to paste in `reports/<day>/autofix/<id>-pr.md`.
+
+Setup: copy `routine/autofix.example.yaml` to `routine/autofix.yaml`
+(git-ignored), list the repositories with their reviewer profile and PR host,
+and, for Bitbucket, store a token with pull-request write access:
+
+```bash
+security add-generic-password -U -s git-daily-review-bitbucket -a "$USER" -w
+```
+
+State lives in `data/autofix.json`; per-day output in
+`reports/<day>/autofix.md` and `reports/<day>/autofix/*-review-N.md`.
+Tests: `python3 -m unittest discover -s tests`.
+
+---
+
 ## MCP server (use it as an agent)
 
 The `mcp/` directory contains a TypeScript MCP server that wraps the review engine.
@@ -243,6 +293,7 @@ git-daily-review/
 │   ├── report_generator.py     ← Markdown reports + history index
 │   ├── html_report.py          ← self-contained HTML dashboard (charts, filters)
 │   ├── catch_up.py             ← skipped-run detection and single-run recovery
+│   ├── autofix.py              ← findings → worktree fix → bot review → PR (gated)
 │   ├── portal.py               ← local web portal (HTTP server, read-only API)
 │   ├── review_db.py            ← SQLite review database: schema, import from reports, queries
 │   ├── portal_data.py          ← git-flow layout, releases, git show fallback
@@ -250,6 +301,9 @@ git-daily-review/
 │   └── wizard_app.py           ← wizard HTTP backend
 ├── mcp/                        ← MCP server (TypeScript)
 │   └── src/index.ts
+├── routine/
+│   └── autofix.example.yaml    ← autofix settings template (copy to autofix.yaml)
+├── tests/                      ← python3 -m unittest discover -s tests
 ├── templates/
 │   ├── wizard.html
 │   └── portal.html             ← portal single-page app
