@@ -40,3 +40,7 @@ rag/*.local.json
 .DS_Store
 __MACOSX/
 *.swp
+
+# ── Autofix (local config, state and worktrees hold client data) ──
+routine/autofix.yaml
+.autofix/
