@@ -74,11 +74,46 @@ class NotifyTest(unittest.TestCase):
 
 
 class SendTest(unittest.TestCase):
-    def test_unconfigured(self):
+    """Invio reale sostituito: `_call` registra o fallisce come una rete che blocca Telegram."""
+
+    def setUp(self):
         import importlib
-        fresh = importlib.reload(notify)
-        self.assertEqual(fresh.send("x", {})[0], False)
-        self.assertIn("non configurate", fresh.send("x", {})[1])
+        self.n = importlib.reload(notify)
+        self.n.OUTBOX = Path(tempfile.mkdtemp()) / "outbox.jsonl"
+        self.n.read_token = lambda *a: "123:token"
+        self.cfg = {"telegram": {"chat_id": "@c", "keychain_service": "x"}}
+        self.calls, self.offline = [], False
+
+        def call(token, method, params=None):
+            if self.offline:
+                raise self.n.TelegramError("Telegram non raggiungibile (ConnectionResetError)")
+            self.calls.append(params["text"])
+            return {"ok": True}
+        self.n._call = call
+
+    def test_unconfigured(self):
+        self.assertEqual(self.n.send("x", {}), (False, "notifiche Telegram non configurate (notify.telegram.chat_id)"))
+
+    def test_offline_messages_wait_in_queue(self):
+        self.offline = True
+        ok, detail = self.n.send("primo", self.cfg)
+        self.assertFalse(ok)
+        self.assertIn("in coda", detail)
+        self.n.send("secondo", self.cfg)
+        self.assertEqual([i["text"] for i in self.n._queued()], ["primo", "secondo"])
+        self.offline = False
+        self.assertEqual(self.n.send("terzo", self.cfg), (True, "inviata (+2 dalla coda)"))
+        self.assertTrue(self.calls[0].startswith("primo\n(in ritardo"))
+        self.assertEqual(self.calls[2], "terzo")
+        self.assertFalse(self.n.OUTBOX.exists())
+
+    def test_flush_only(self):
+        self.offline = True
+        self.n.send("vecchio", self.cfg)
+        self.offline = False
+        self.assertTrue(self.n.send("", self.cfg)[0])
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual(self.n.send("", self.cfg), (True, "nessun messaggio da inviare"))
 
 
 if __name__ == "__main__":

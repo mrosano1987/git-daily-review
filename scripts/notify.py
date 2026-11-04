@@ -24,6 +24,11 @@ Uso:
     python3 scripts/notify.py send [--date D]      # riepilogo del giorno
     python3 scripts/notify.py watchdog [--date D]  # avvisa se il giorno non è chiuso
     python3 scripts/notify.py chat-ids             # chat viste dal bot (per trovare chat_id)
+    python3 scripts/notify.py flush                # reinvia i messaggi rimasti in coda
+
+Se Telegram non è raggiungibile (rete aziendale, VPN) il messaggio resta in
+coda in data/notify-outbox.jsonl e parte al primo invio riuscito successivo
+o al watchdog serale, con l'orario originale.
 """
 
 import argparse
@@ -51,6 +56,8 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = Path(os.environ.get("GDR_AGENT_CONFIG") or ROOT_DIR / "routine" / "agent.yaml")
 REPORTS_DIR = Path(os.environ.get("GDR_REPORTS_DIR") or ROOT_DIR / "reports")
 AUTOFIX_STATE = Path(os.environ.get("GDR_AUTOFIX_STATE") or ROOT_DIR / "data" / "autofix.json")
+OUTBOX = Path(os.environ.get("GDR_NOTIFY_OUTBOX") or ROOT_DIR / "data" / "notify-outbox.jsonl")
+MAX_QUEUED = 20          # oltre, si tengono i più recenti
 
 WARNINGS = {
     "rag": "RAG non disponibile",
@@ -75,41 +82,87 @@ def load_config() -> dict:
     return data.get("notify") or {}
 
 
-def send(text: str, cfg: dict = None) -> tuple:
-    """Invia `text` al canale configurato. Ritorna (inviato, dettaglio); non solleva eccezioni."""
-    cfg = cfg if cfg is not None else load_config()
-    tg = cfg.get("telegram") or {}
-    if not tg.get("chat_id"):
-        return False, "notifiche Telegram non configurate (notify.telegram.chat_id)"
+class TelegramError(Exception):
+    """Errore di invio già descritto in italiano, senza URL né token."""
+
+
+def _token(tg: dict) -> str:
     token = read_token(tg.get("token_env"), tg.get("keychain_service"), tg.get("keychain_account"))
     if not token:
-        return False, "token del bot Telegram non disponibile"
-    data = urllib.parse.urlencode({"chat_id": tg["chat_id"], "text": text,
-                                   "disable_web_page_preview": "true"}).encode()
-    req = urllib.request.Request(f"https://api.telegram.org/bot{token}/sendMessage", data=data, method="POST")
+        raise TelegramError("token del bot Telegram non disponibile")
+    return token
+
+
+def _call(token: str, method: str, params: dict = None) -> dict:
+    """Chiamata alla Bot API. Gli errori non riportano mai l'URL, che contiene il token."""
+    data = urllib.parse.urlencode(params).encode() if params else None
+    req = urllib.request.Request(f"https://api.telegram.org/bot{token}/{method}", data=data,
+                                 method="POST" if data else "GET")
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
-            ok = json.loads(resp.read().decode()).get("ok", False)
-        return bool(ok), "inviata" if ok else "Telegram ha rifiutato il messaggio"
-    except urllib.error.HTTPError as e:      # il messaggio d'errore non contiene l'URL (né quindi il token)
+            body = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
         try:
             detail = json.loads(e.read().decode()).get("description", "")
         except ValueError:
             detail = ""
-        return False, f"Telegram ha risposto {e.code} {detail}".strip()
-    except (urllib.error.URLError, OSError) as e:
-        return False, f"Telegram non raggiungibile ({getattr(e, 'reason', e)})"
+        raise TelegramError(f"Telegram ha risposto {e.code} {detail}".strip()) from None
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        raise TelegramError(f"Telegram non raggiungibile ({type(getattr(e, 'reason', e)).__name__})") from None
+    if not body.get("ok"):
+        raise TelegramError(f"Telegram ha rifiutato la richiesta ({body.get('description', '?')})")
+    return body
+
+
+def _queue(items: list):
+    OUTBOX.parent.mkdir(parents=True, exist_ok=True)
+    OUTBOX.write_text("".join(json.dumps(i, ensure_ascii=False) + "\n" for i in items[-MAX_QUEUED:]),
+                      encoding="utf-8")
+
+
+def _queued() -> list:
+    try:
+        return [json.loads(line) for line in OUTBOX.read_text(encoding="utf-8").splitlines() if line.strip()]
+    except (OSError, ValueError):
+        return []
+
+
+def send(text: str, cfg: dict = None) -> tuple:
+    """Invia prima i messaggi in coda, poi `text`. Se Telegram non risponde, ciò che resta va in coda.
+
+    Ritorna (inviato, dettaglio); non solleva eccezioni.
+    """
+    cfg = cfg if cfg is not None else load_config()
+    tg = cfg.get("telegram") or {}
+    if not tg.get("chat_id"):
+        return False, "notifiche Telegram non configurate (notify.telegram.chat_id)"
+    late = _queued()
+    pending = late + ([{"at": datetime.now().isoformat(timespec="minutes"), "text": text}] if text else [])
+    if not pending:
+        return True, "nessun messaggio da inviare"
+    try:
+        token = _token(tg)
+        for i, item in enumerate(pending):
+            body = item["text"]
+            if i < len(late):
+                body += f"\n(in ritardo: generato alle {item['at'][11:16]} del {item['at'][:10]})"
+            try:
+                _call(token, "sendMessage", {"chat_id": tg["chat_id"], "text": body,
+                                             "disable_web_page_preview": "true"})
+            except TelegramError:
+                pending = pending[i:]
+                raise
+    except TelegramError as e:
+        _queue(pending)
+        return False, f"non inviata, in coda ({e})"
+    OUTBOX.unlink(missing_ok=True)
+    return True, "inviata" + (f" (+{len(late)} dalla coda)" if late else "")
 
 
 def chat_ids(cfg: dict = None) -> list:
     """Chat in cui il bot ha ricevuto aggiornamenti: serve a trovare il chat_id del canale."""
     cfg = cfg if cfg is not None else load_config()
-    tg = cfg.get("telegram") or {}
-    token = read_token(tg.get("token_env"), tg.get("keychain_service"), tg.get("keychain_account"))
-    if not token:
-        raise SystemExit("token del bot Telegram non disponibile")
-    with urllib.request.urlopen(f"https://api.telegram.org/bot{token}/getUpdates", timeout=30) as resp:
-        updates = json.loads(resp.read().decode()).get("result", [])
+    updates = _call(_token(cfg.get("telegram") or {}), "getUpdates").get("result", [])
     seen = {}
     for u in updates:
         for key in ("channel_post", "message", "my_chat_member", "edited_channel_post"):
@@ -208,12 +261,24 @@ def main(argv=None) -> int:
     w = sub.add_parser("watchdog", parents=[common])
     w.add_argument("--always", action="store_true", help="invia il riepilogo anche se il giorno è chiuso")
     sub.add_parser("chat-ids", parents=[common])
+    sub.add_parser("flush", parents=[common])
     a = p.parse_args(argv)
 
     if a.cmd == "chat-ids":
-        for c in chat_ids():
+        try:
+            found = chat_ids()
+        except TelegramError as e:
+            print(f"✋ {e}", file=sys.stderr)
+            return 1
+        for c in found:
             print(json.dumps(c, ensure_ascii=False))
+        if not found:
+            print("Nessuna chat: aggiungi il bot al canale come amministratore e pubblica un messaggio, poi riprova.")
         return 0
+    if a.cmd == "flush":
+        ok, detail = send("")
+        print(f"coda: {detail}")
+        return 0 if ok else 1
     if a.cmd == "test":
         text = f"🔔 {load_config().get('label', 'git-daily-review')}: notifiche attive ({datetime.now():%Y-%m-%d %H:%M})"
     elif a.cmd == "send":
@@ -221,7 +286,8 @@ def main(argv=None) -> int:
     else:
         text = watchdog_text(a.date) or (run_summary(a.date) if a.always else "")
         if not text:
-            print(f"giornata {a.date} chiusa: nessun avviso")
+            ok, detail = send("")          # giornata chiusa: si limita a svuotare la coda
+            print(f"giornata {a.date} chiusa: nessun avviso · coda: {detail}")
             return 0
     ok, detail = send(text)
     print(f"notifica {detail}")
