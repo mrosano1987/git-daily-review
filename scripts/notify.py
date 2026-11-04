@@ -144,6 +144,9 @@ def _teams_url(tm: dict) -> str:
         raise NotifyError("indirizzo del Workflow Teams non disponibile")
     if not url.startswith("https://"):
         raise NotifyError("indirizzo del Workflow Teams non valido (deve iniziare con https://)")
+    if "sig=" not in url:     # il prompt di `security … -w` tronca a 128 caratteri
+        raise NotifyError("indirizzo del Workflow Teams incompleto (manca la firma sig=): "
+                          "salvalo con -w \"$(pbpaste)\" invece del prompt")
     return url
 
 
