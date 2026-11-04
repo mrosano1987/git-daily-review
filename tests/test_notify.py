@@ -161,7 +161,7 @@ class TeamsTest(unittest.TestCase):
         self.assertIn("non valido", detail)
         self.assertNotIn("SEGRETO", detail)
         self.url = "https://flow.example.invalid/powerautomate/automations/direct/wo"
-        self.assertIn("incompleto", self.n.send("esito", self.cfg)[1])
+        self.assertIn("senza firma", self.n.send("esito", self.cfg)[1])
 
     def test_card_has_one_block_per_line(self):
         card = self.n.teams_card("✅ titolo\nriga 1\nriga 2")

@@ -144,9 +144,11 @@ def _teams_url(tm: dict) -> str:
         raise NotifyError("indirizzo del Workflow Teams non disponibile")
     if not url.startswith("https://"):
         raise NotifyError("indirizzo del Workflow Teams non valido (deve iniziare con https://)")
-    if "sig=" not in url:     # il prompt di `security … -w` tronca a 128 caratteri
-        raise NotifyError("indirizzo del Workflow Teams incompleto (manca la firma sig=): "
-                          "salvalo con -w \"$(pbpaste)\" invece del prompt")
+    if "sig=" not in url:
+        # due cause note: il prompt di `security … -w` tronca a 128 caratteri, oppure il trigger
+        # del Workflow accetta solo utenti del tenant (OAuth) e l'URL nasce senza firma
+        raise NotifyError("indirizzo del Workflow Teams senza firma sig=: salvalo con -w \"$(pbpaste)\" "
+                          "e, nel trigger del Workflow, imposta «Chi può attivare il flusso» su «Chiunque»")
     return url
 
 

@@ -233,7 +233,11 @@ when a webhook request is received* (or *Post to a chat…*), pick the channel,
 copy the URL it shows and store it in the Keychain from the clipboard (the
 interactive `-w` prompt cuts input at 128 characters, shorter than these URLs):
 `security add-generic-password -U -s git-daily-review-teams -a "$USER" -w "$(pbpaste)"; pbcopy </dev/null`.
-The URL carries the access signature: treat it as a token. Messages arrive as Adaptive Cards.
+The URL must carry the access signature (`sig=`): if it does not, open the
+Workflow, set the trigger's *Who can trigger the flow* to *Anyone* and copy the
+new URL (with *Any user in my tenant* Teams answers 401
+`DirectApiAuthorizationRequired`). Anyone holding the URL can post to the
+channel, so treat it as a token. Messages arrive as Adaptive Cards.
 
 **Telegram.** Store the bot token with
 `security add-generic-password -U -s git-daily-review-telegram -a "$USER" -w`,
