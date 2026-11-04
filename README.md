@@ -216,22 +216,35 @@ verdict is final. `format: agy-json` reads `agy -p … --output-format json`.
 In headless mode Antigravity cannot ask for permissions, so pass the reviewed
 repositories with `--add-dir` (files outside the workspace are denied).
 
-### Telegram notifications and evening watchdog
+### Notifications (Teams or Telegram) and evening watchdog
 
-With `notify.telegram` in `routine/agent.yaml`, `agent_run.py end` posts the
-day's outcome to a Telegram channel, and `begin` posts when a backup takes
-over an interrupted run. Messages carry **only outcomes and counts** (harness,
-status, times, commits, quality, findings per severity, autofix outcomes,
-warnings from a fixed list): no repository, file, author or finding text,
-since the channel sits outside the client-data perimeter.
+With `notify` in `routine/agent.yaml`, `agent_run.py end` posts the day's
+outcome and `begin` posts when a backup takes over an interrupted run.
+Messages carry outcomes and counts only: no repository, file, author or
+finding text.
 
 `scripts/notify.py watchdog` (launchd template
 `routine/com.gitdailyreview.watchdog.plist`, 21:00) is plain Python: it warns
 when no harness closed the day, even if every agent app is closed or out of
-credit. The bot token lives in the macOS Keychain
-(`security add-generic-password -U -s git-daily-review-telegram -a "$USER" -w`);
-`python3 scripts/notify.py chat-ids` finds the channel id and
-`python3 scripts/notify.py test` sends a test message.
+credit.
+
+**Teams.** In Teams, create a Workflow from the template *Post to a channel
+when a webhook request is received* (or *Post to a chat…*), pick the channel,
+copy the URL it shows and store it in the Keychain:
+`security add-generic-password -U -s git-daily-review-teams -a "$USER" -w`
+(paste the URL at the prompt: it carries the access signature, treat it as a
+token). Messages arrive as Adaptive Cards.
+
+**Telegram.** Store the bot token with
+`security add-generic-password -U -s git-daily-review-telegram -a "$USER" -w`,
+find the channel id with `python3 scripts/notify.py chat-ids`. Some managed
+Macs block `api.telegram.org` (e.g. Microsoft Defender web filtering): use
+Teams there.
+
+`python3 scripts/notify.py test` sends a test message. When the channel is
+unreachable or not fully configured, messages wait in `data/notify-outbox.jsonl`
+and go out later, marked as late with their original time;
+`routine/com.gitdailyreview.notify-flush.plist` retries every 30 minutes.
 
 ---
 
@@ -332,7 +345,7 @@ git-daily-review/
 │   ├── catch_up.py             ← skipped-run detection and single-run recovery
 │   ├── autofix.py              ← findings → worktree fix → bot review → PR (gated)
 │   ├── agent_run.py            ← one completed daily run across harnesses (lock + marker)
-│   ├── notify.py               ← Telegram outcome messages + evening watchdog
+│   ├── notify.py               ← Teams/Telegram outcome messages + evening watchdog
 │   ├── keychain.py             ← tokens from env or macOS Keychain, never printed
 │   ├── portal.py               ← local web portal (HTTP server, read-only API)
 │   ├── review_db.py            ← SQLite review database: schema, import from reports, queries

@@ -74,7 +74,7 @@ class NotifyTest(unittest.TestCase):
 
 
 class SendTest(unittest.TestCase):
-    """Invio reale sostituito: `_call` registra o fallisce come una rete che blocca Telegram."""
+    """Invio reale sostituito: `_call` registra o fallisce come una rete che blocca il canale."""
 
     def setUp(self):
         import importlib
@@ -86,13 +86,21 @@ class SendTest(unittest.TestCase):
 
         def call(token, method, params=None):
             if self.offline:
-                raise self.n.TelegramError("Telegram non raggiungibile (ConnectionResetError)")
+                raise self.n.NotifyError("Telegram non raggiungibile (ConnectionResetError)")
             self.calls.append(params["text"])
             return {"ok": True}
         self.n._call = call
 
     def test_unconfigured(self):
-        self.assertEqual(self.n.send("x", {}), (False, "notifiche Telegram non configurate (notify.telegram.chat_id)"))
+        self.assertEqual(self.n.send("x", {}), (False, "notifiche non configurate (notify.teams o notify.telegram)"))
+        self.assertFalse(self.n.OUTBOX.exists())
+
+    def test_missing_chat_id_waits_in_queue(self):
+        ok, detail = self.n.send("esito", {"telegram": {"chat_id": "", "keychain_service": "x"}})
+        self.assertFalse(ok)
+        self.assertIn("chat_id", detail)
+        self.assertEqual(self.n.send("", self.cfg), (True, "inviata su telegram (+1 dalla coda)"))
+        self.assertTrue(self.calls[0].startswith("esito\n(in ritardo"))
 
     def test_offline_messages_wait_in_queue(self):
         self.offline = True
@@ -102,7 +110,7 @@ class SendTest(unittest.TestCase):
         self.n.send("secondo", self.cfg)
         self.assertEqual([i["text"] for i in self.n._queued()], ["primo", "secondo"])
         self.offline = False
-        self.assertEqual(self.n.send("terzo", self.cfg), (True, "inviata (+2 dalla coda)"))
+        self.assertEqual(self.n.send("terzo", self.cfg), (True, "inviata su telegram (+2 dalla coda)"))
         self.assertTrue(self.calls[0].startswith("primo\n(in ritardo"))
         self.assertEqual(self.calls[2], "terzo")
         self.assertFalse(self.n.OUTBOX.exists())
@@ -114,6 +122,50 @@ class SendTest(unittest.TestCase):
         self.assertTrue(self.n.send("", self.cfg)[0])
         self.assertEqual(len(self.calls), 1)
         self.assertEqual(self.n.send("", self.cfg), (True, "nessun messaggio da inviare"))
+
+
+class TeamsTest(unittest.TestCase):
+    """Workflow Teams: card Adaptive, URL trattato come segreto, coda come per Telegram."""
+
+    def setUp(self):
+        import importlib
+        self.n = importlib.reload(notify)
+        self.n.OUTBOX = Path(tempfile.mkdtemp()) / "outbox.jsonl"
+        self.url = "https://flow.example.invalid/workflows/1?sig=SEGRETO"
+        self.n.read_token = lambda *a: self.url
+        self.cfg = {"teams": {"keychain_service": "x"}, "telegram": {"chat_id": "@c"}}
+        self.posts, self.offline = [], False
+
+        def post(url, text):
+            if self.offline:
+                raise self.n.NotifyError("Teams non raggiungibile (TimeoutError)")
+            self.posts.append((url, text))
+        self.n._post_teams = post
+
+    def test_teams_is_preferred_and_queues_offline(self):
+        self.offline = True
+        self.assertIn("in coda", self.n.send("esito", self.cfg)[1])
+        self.offline = False
+        self.assertEqual(self.n.send("altro", self.cfg), (True, "inviata su teams (+1 dalla coda)"))
+        self.assertEqual(self.posts[0][0], self.url)
+        self.assertEqual(self.posts[1][1], "altro")
+
+    def test_channel_can_be_chosen(self):
+        self.assertEqual(self.n._channel({**self.cfg, "channel": "telegram"})[0], "telegram")
+        self.assertEqual(self.n._channel({"channel": "teams"}), (None, {}))
+
+    def test_bad_url_is_not_printed(self):
+        self.url = "http://flow.example.invalid/?sig=SEGRETO"
+        ok, detail = self.n.send("esito", self.cfg)
+        self.assertFalse(ok)
+        self.assertIn("non valido", detail)
+        self.assertNotIn("SEGRETO", detail)
+
+    def test_card_has_one_block_per_line(self):
+        card = self.n.teams_card("✅ titolo\nriga 1\nriga 2")
+        body = card["attachments"][0]["content"]["body"]
+        self.assertEqual([b["text"] for b in body], ["✅ titolo", "riga 1", "riga 2"])
+        self.assertEqual(body[0]["weight"], "Bolder")
 
 
 if __name__ == "__main__":

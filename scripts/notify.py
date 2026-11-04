@@ -1,5 +1,5 @@
 """
-notify.py — Notifiche Telegram sull'esito delle run giornaliere
+notify.py — Notifiche sull'esito delle run giornaliere (Teams o Telegram)
 
 Un messaggio quando una run si chiude, uno quando la riserva subentra a una
 run interrotta e, dal watchdog serale, uno quando la giornata non risulta
@@ -8,27 +8,36 @@ chiusa da nessun harness.
 I messaggi contengono SOLO esiti e conteggi (stato, harness, orari, numero
 di commit, quality score, finding per severità, esiti dell'autofix, avvisi da
 un elenco chiuso): nessun nome di repository, file, autore o testo di
-finding, perché Telegram è fuori dal perimetro dei dati del cliente.
+finding.
 
-Configurazione in routine/agent.yaml:
+Configurazione in routine/agent.yaml (un solo canale; `channel` sceglie se
+ce ne sono due):
 
     notify:
       label: git-daily-review
+      teams:                           # Workflow "Post to a channel when a webhook request is received"
+        keychain_service: git-daily-review-teams   # URL del Workflow nel Portachiavi
+        webhook_env: GDR_TEAMS_WEBHOOK             # alternativa al Portachiavi
       telegram:
         chat_id: "-1001234567890"      # o "@nome_canale"
         keychain_service: git-daily-review-telegram
-        token_env: GDR_TELEGRAM_TOKEN  # alternativa al Portachiavi
+        token_env: GDR_TELEGRAM_TOKEN
+
+L'URL del Workflow contiene la firma d'accesso: si tratta come un token, mai
+stampato né scritto in chiaro.
 
 Uso:
     python3 scripts/notify.py test                 # messaggio di prova
     python3 scripts/notify.py send [--date D]      # riepilogo del giorno
     python3 scripts/notify.py watchdog [--date D]  # avvisa se il giorno non è chiuso
-    python3 scripts/notify.py chat-ids             # chat viste dal bot (per trovare chat_id)
+    python3 scripts/notify.py chat-ids             # (Telegram) chat viste dal bot
     python3 scripts/notify.py flush                # reinvia i messaggi rimasti in coda
 
-Se Telegram non è raggiungibile (rete aziendale, VPN) il messaggio resta in
-coda in data/notify-outbox.jsonl e parte al primo invio riuscito successivo
-o al watchdog serale, con l'orario originale.
+Se il canale non è raggiungibile il messaggio resta in coda in
+data/notify-outbox.jsonl e parte al primo invio riuscito successivo (o al
+watchdog serale) con l'orario originale; lo stesso finché la configurazione
+è incompleta. Il job launchd routine/com.gitdailyreview.notify-flush.plist
+ritenta ogni 30 minuti (a coda vuota non fa chiamate di rete).
 """
 
 import argparse
@@ -82,14 +91,27 @@ def load_config() -> dict:
     return data.get("notify") or {}
 
 
-class TelegramError(Exception):
+class NotifyError(Exception):
     """Errore di invio già descritto in italiano, senza URL né token."""
 
+
+CHANNELS = ("teams", "telegram")
+
+
+def _channel(cfg: dict) -> tuple:
+    """(nome, configurazione) del canale: notify.channel o il primo configurato."""
+    name = cfg.get("channel") or next((c for c in CHANNELS if cfg.get(c)), None)
+    if name not in CHANNELS or not cfg.get(name):
+        return None, {}
+    return name, cfg[name]
+
+
+# ── Telegram ───────────────────────────────────────────────────
 
 def _token(tg: dict) -> str:
     token = read_token(tg.get("token_env"), tg.get("keychain_service"), tg.get("keychain_account"))
     if not token:
-        raise TelegramError("token del bot Telegram non disponibile")
+        raise NotifyError("token del bot Telegram non disponibile")
     return token
 
 
@@ -106,12 +128,61 @@ def _call(token: str, method: str, params: dict = None) -> dict:
             detail = json.loads(e.read().decode()).get("description", "")
         except ValueError:
             detail = ""
-        raise TelegramError(f"Telegram ha risposto {e.code} {detail}".strip()) from None
+        raise NotifyError(f"Telegram ha risposto {e.code} {detail}".strip()) from None
     except (urllib.error.URLError, OSError, ValueError) as e:
-        raise TelegramError(f"Telegram non raggiungibile ({type(getattr(e, 'reason', e)).__name__})") from None
+        raise NotifyError(f"Telegram non raggiungibile ({type(getattr(e, 'reason', e)).__name__})") from None
     if not body.get("ok"):
-        raise TelegramError(f"Telegram ha rifiutato la richiesta ({body.get('description', '?')})")
+        raise NotifyError(f"Telegram ha rifiutato la richiesta ({body.get('description', '?')})")
     return body
+
+
+# ── Teams (Workflows) ──────────────────────────────────────────
+
+def _teams_url(tm: dict) -> str:
+    url = read_token(tm.get("webhook_env"), tm.get("keychain_service"), tm.get("keychain_account"))
+    if not url:
+        raise NotifyError("indirizzo del Workflow Teams non disponibile")
+    if not url.startswith("https://"):
+        raise NotifyError("indirizzo del Workflow Teams non valido (deve iniziare con https://)")
+    return url
+
+
+def teams_card(text: str) -> dict:
+    """Adaptive Card con una riga di testo per riga del messaggio, la prima in grassetto."""
+    lines = text.splitlines() or [""]
+    body = [{"type": "TextBlock", "text": lines[0], "weight": "Bolder", "wrap": True}]
+    body += [{"type": "TextBlock", "text": line, "wrap": True, "spacing": "None"} for line in lines[1:]]
+    return {"type": "message", "attachments": [{
+        "contentType": "application/vnd.microsoft.card.adaptive", "contentUrl": None,
+        "content": {"$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard", "version": "1.4", "body": body}}]}
+
+
+def _post_teams(url: str, text: str):
+    """POST della card al Workflow. Gli errori non riportano mai l'URL, che contiene la firma."""
+    req = urllib.request.Request(url, data=json.dumps(teams_card(text)).encode(),
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=30):
+            pass
+    except urllib.error.HTTPError as e:
+        raise NotifyError(f"Teams ha risposto {e.code}") from None
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        raise NotifyError(f"Teams non raggiungibile ({type(getattr(e, 'reason', e)).__name__})") from None
+
+
+# ── invio con coda ─────────────────────────────────────────────
+
+def _sender(name: str, conf: dict):
+    """Funzione che invia un testo sul canale; solleva NotifyError se la configurazione è incompleta."""
+    if name == "teams":
+        url = _teams_url(conf)
+        return lambda text: _post_teams(url, text)
+    if not conf.get("chat_id"):       # canale non ancora configurato: i messaggi aspettano in coda
+        raise NotifyError("chat_id del canale non ancora configurato")
+    token = _token(conf)
+    return lambda text: _call(token, "sendMessage", {"chat_id": conf["chat_id"], "text": text,
+                                                     "disable_web_page_preview": "true"})
 
 
 def _queue(items: list):
@@ -128,35 +199,34 @@ def _queued() -> list:
 
 
 def send(text: str, cfg: dict = None) -> tuple:
-    """Invia prima i messaggi in coda, poi `text`. Se Telegram non risponde, ciò che resta va in coda.
+    """Invia prima i messaggi in coda, poi `text`. Se il canale non risponde, ciò che resta va in coda.
 
     Ritorna (inviato, dettaglio); non solleva eccezioni.
     """
     cfg = cfg if cfg is not None else load_config()
-    tg = cfg.get("telegram") or {}
-    if not tg.get("chat_id"):
-        return False, "notifiche Telegram non configurate (notify.telegram.chat_id)"
+    name, conf = _channel(cfg)
+    if not name:
+        return False, "notifiche non configurate (notify.teams o notify.telegram)"
     late = _queued()
     pending = late + ([{"at": datetime.now().isoformat(timespec="minutes"), "text": text}] if text else [])
     if not pending:
         return True, "nessun messaggio da inviare"
     try:
-        token = _token(tg)
+        deliver = _sender(name, conf)
         for i, item in enumerate(pending):
             body = item["text"]
             if i < len(late):
                 body += f"\n(in ritardo: generato alle {item['at'][11:16]} del {item['at'][:10]})"
             try:
-                _call(token, "sendMessage", {"chat_id": tg["chat_id"], "text": body,
-                                             "disable_web_page_preview": "true"})
-            except TelegramError:
+                deliver(body)
+            except NotifyError:
                 pending = pending[i:]
                 raise
-    except TelegramError as e:
+    except NotifyError as e:
         _queue(pending)
         return False, f"non inviata, in coda ({e})"
     OUTBOX.unlink(missing_ok=True)
-    return True, "inviata" + (f" (+{len(late)} dalla coda)" if late else "")
+    return True, f"inviata su {name}" + (f" (+{len(late)} dalla coda)" if late else "")
 
 
 def chat_ids(cfg: dict = None) -> list:
@@ -254,7 +324,7 @@ def watchdog_text(day: str, cfg: dict = None) -> str:
 def main(argv=None) -> int:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--date", default=date.today().isoformat())
-    p = argparse.ArgumentParser(description="Notifiche Telegram delle run giornaliere")
+    p = argparse.ArgumentParser(description="Notifiche (Teams o Telegram) delle run giornaliere")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("test", parents=[common])
     sub.add_parser("send", parents=[common])
@@ -267,7 +337,7 @@ def main(argv=None) -> int:
     if a.cmd == "chat-ids":
         try:
             found = chat_ids()
-        except TelegramError as e:
+        except NotifyError as e:
             print(f"✋ {e}", file=sys.stderr)
             return 1
         for c in found:

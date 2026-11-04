@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Evening watchdog: warns on Telegram when no harness closed the day.
+  Evening watchdog: warns on Teams/Telegram when no harness closed the day.
 
   It is plain Python (no model, no app needed), so it still speaks up when
   every agent app is closed or out of credit. Install (adapt the path if the

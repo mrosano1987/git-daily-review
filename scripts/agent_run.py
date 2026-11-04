@@ -15,7 +15,7 @@ Una run "in corso" da più di `--stale-hours` ore si considera interrotta
 Stato in data/agent-runs/<giorno>.json (gitignored).
 
 La chiusura di una run e il subentro della riserva vengono notificati su
-Telegram se configurato (scripts/notify.py); GDR_NOTIFY=off li disattiva.
+Teams/Telegram se configurato (scripts/notify.py); GDR_NOTIFY=off li disattiva.
 """
 
 import argparse

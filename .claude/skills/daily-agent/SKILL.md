@@ -87,7 +87,7 @@ description file to paste, skips and abandons with their reason).
 `.venv/bin/python3 scripts/agent_run.py end --harness <harness> --status ok`
 (`--status partial` if a step was skipped because something was down), adding
 one `--warn` per problem met: `rag`, `ingest`, `ollama`, `review`, `autofix`.
-This also sends the Telegram notification when `notify` is configured: it
+This also sends the Teams/Telegram notification when `notify` is configured: it
 carries only outcomes and counts, so never put names or finding text in
 `--note` expecting them to be sent (the note stays local).
 
