@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Evening watchdog: warns on Telegram when no harness closed the day.
+
+  It is plain Python (no model, no app needed), so it still speaks up when
+  every agent app is closed or out of credit. Install (adapt the path if the
+  project is not in ~/Progetti and the hour if your runs end later):
+    cp routine/com.gitdailyreview.watchdog.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.gitdailyreview.watchdog.plist
+  Logs to /tmp/gdr-watchdog.*.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.gitdailyreview.watchdog</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>cd $HOME/Progetti/git-daily-review &amp;&amp; exec .venv/bin/python3 scripts/notify.py watchdog</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict><key>Hour</key><integer>21</integer><key>Minute</key><integer>0</integer></dict>
+    <key>StandardOutPath</key><string>/tmp/gdr-watchdog.out</string>
+    <key>StandardErrorPath</key><string>/tmp/gdr-watchdog.err</string>
+</dict>
+</plist>

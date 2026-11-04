@@ -59,6 +59,7 @@ if __name__ == "__main__":
 import yaml  # noqa: E402
 
 import review_db  # noqa: E402
+from keychain import read_token  # noqa: E402
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = Path(os.environ.get("GDR_AUTOFIX_CONFIG") or ROOT_DIR / "routine" / "autofix.yaml")
@@ -471,19 +472,8 @@ def _remote_slug(url: str):
 
 
 def _secret(pr_cfg: dict):
-    """Token letto dall'ambiente o dal Portachiavi macOS. Non viene mai stampato né salvato."""
-    env = pr_cfg.get("token_env")
-    if env and os.environ.get(env):
-        return os.environ[env]
-    service = pr_cfg.get("keychain_service")
-    if service and sys.platform == "darwin":
-        argv = ["security", "find-generic-password", "-s", service, "-w"]
-        if pr_cfg.get("keychain_account"):
-            argv[3:3] = ["-a", pr_cfg["keychain_account"]]
-        r = subprocess.run(argv, capture_output=True, text=True)
-        if r.returncode == 0 and r.stdout.strip():
-            return r.stdout.strip()
-    return None
+    """Token del servizio PR (ambiente o Portachiavi macOS). Non viene mai stampato né salvato."""
+    return read_token(pr_cfg.get("token_env"), pr_cfg.get("keychain_service"), pr_cfg.get("keychain_account"))
 
 
 def _pr_body(att: dict, cfg: dict) -> str:

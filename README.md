@@ -216,6 +216,23 @@ verdict is final. `format: agy-json` reads `agy -p … --output-format json`.
 In headless mode Antigravity cannot ask for permissions, so pass the reviewed
 repositories with `--add-dir` (files outside the workspace are denied).
 
+### Telegram notifications and evening watchdog
+
+With `notify.telegram` in `routine/agent.yaml`, `agent_run.py end` posts the
+day's outcome to a Telegram channel, and `begin` posts when a backup takes
+over an interrupted run. Messages carry **only outcomes and counts** (harness,
+status, times, commits, quality, findings per severity, autofix outcomes,
+warnings from a fixed list): no repository, file, author or finding text,
+since the channel sits outside the client-data perimeter.
+
+`scripts/notify.py watchdog` (launchd template
+`routine/com.gitdailyreview.watchdog.plist`, 21:00) is plain Python: it warns
+when no harness closed the day, even if every agent app is closed or out of
+credit. The bot token lives in the macOS Keychain
+(`security add-generic-password -U -s git-daily-review-telegram -a "$USER" -w`);
+`python3 scripts/notify.py chat-ids` finds the channel id and
+`python3 scripts/notify.py test` sends a test message.
+
 ---
 
 ## MCP server (use it as an agent)
@@ -315,6 +332,8 @@ git-daily-review/
 │   ├── catch_up.py             ← skipped-run detection and single-run recovery
 │   ├── autofix.py              ← findings → worktree fix → bot review → PR (gated)
 │   ├── agent_run.py            ← one completed daily run across harnesses (lock + marker)
+│   ├── notify.py               ← Telegram outcome messages + evening watchdog
+│   ├── keychain.py             ← tokens from env or macOS Keychain, never printed
 │   ├── portal.py               ← local web portal (HTTP server, read-only API)
 │   ├── review_db.py            ← SQLite review database: schema, import from reports, queries
 │   ├── portal_data.py          ← git-flow layout, releases, git show fallback
