@@ -136,10 +136,10 @@ class TeamsTest(unittest.TestCase):
         self.cfg = {"teams": {"keychain_service": "x"}, "telegram": {"chat_id": "@c"}}
         self.posts, self.offline = [], False
 
-        def post(url, text):
+        def post(url, text, token=None):
             if self.offline:
                 raise self.n.NotifyError("Teams non raggiungibile (TimeoutError)")
-            self.posts.append((url, text))
+            self.posts.append((url, text, token))
         self.n._post_teams = post
 
     def test_teams_is_preferred_and_queues_offline(self):
@@ -162,6 +162,21 @@ class TeamsTest(unittest.TestCase):
         self.assertNotIn("SEGRETO", detail)
         self.url = "https://flow.example.invalid/powerautomate/automations/direct/wo"
         self.assertIn("senza firma", self.n.send("esito", self.cfg)[1])
+
+    def test_tenant_only_workflow_uses_azure_cli_token(self):
+        self.url = "https://flow.example.invalid/workflows/1/invoke?api-version=1"
+        self.n._azure_token = lambda conf: "tok"
+        cfg = {"teams": {"keychain_service": "x", "auth": "azure-cli"}}
+        self.assertEqual(self.n.send("esito", cfg), (True, "inviata su teams"))
+        self.assertEqual(self.posts[-1], (self.url, "esito", "tok"))
+
+        def no_login(conf):
+            raise self.n.NotifyError("token Azure non disponibile (accesso scaduto o mancante: esegui az login)")
+        self.n._azure_token = no_login
+        ok, detail = self.n.send("dopo", cfg)
+        self.assertFalse(ok)
+        self.assertIn("az login", detail)
+        self.assertEqual([i["text"] for i in self.n._queued()], ["dopo"])
 
     def test_card_has_one_block_per_line(self):
         card = self.n.teams_card("✅ titolo\nriga 1\nriga 2")

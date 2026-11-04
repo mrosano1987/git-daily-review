@@ -18,13 +18,17 @@ ce ne sono due):
       teams:                           # Workflow "Post to a channel when a webhook request is received"
         keychain_service: git-daily-review-teams   # URL del Workflow nel Portachiavi
         webhook_env: GDR_TEAMS_WEBHOOK             # alternativa al Portachiavi
+        auth: azure-cli                # se il trigger accetta solo utenti del tenant
       telegram:
         chat_id: "-1001234567890"      # o "@nome_canale"
         keychain_service: git-daily-review-telegram
         token_env: GDR_TELEGRAM_TOKEN
 
-L'URL del Workflow contiene la firma d'accesso: si tratta come un token, mai
-stampato né scritto in chiaro.
+L'URL del Workflow si tratta come un token, mai stampato né scritto in chiaro.
+Con il trigger aperto a «Chiunque» l'URL contiene la firma sig=; con «Qualsiasi
+utente nel tenant» serve `auth: azure-cli`: a ogni invio si chiede ad Azure CLI
+(dopo un `az login`) un token del proprio account per Power Automate, senza
+salvarlo.
 
 Uso:
     python3 scripts/notify.py test                 # messaggio di prova
@@ -43,6 +47,8 @@ ritenta ogni 30 minuti (a coda vuota non fa chiamate di rete).
 import argparse
 import json
 import os
+import shutil
+import subprocess
 import sys
 import urllib.error
 import urllib.parse
@@ -138,17 +144,38 @@ def _call(token: str, method: str, params: dict = None) -> dict:
 
 # ── Teams (Workflows) ──────────────────────────────────────────
 
-def _teams_url(tm: dict) -> str:
+FLOW_RESOURCE = "https://service.flow.microsoft.com/"
+AZ_CANDIDATES = ("/opt/homebrew/bin/az", "/usr/local/bin/az")
+
+
+def _azure_token(tm: dict) -> str:
+    """Token Entra ID dell'utente per Power Automate, da Azure CLI. Mai stampato né salvato."""
+    az = tm.get("az_path") or shutil.which("az") or next((p for p in AZ_CANDIDATES if Path(p).exists()), None)
+    if not az:
+        raise NotifyError("Azure CLI (az) non trovato: brew install azure-cli")
+    try:
+        r = subprocess.run([az, "account", "get-access-token", "--resource", tm.get("resource", FLOW_RESOURCE),
+                            "--query", "accessToken", "-o", "tsv"], capture_output=True, text=True, timeout=90)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise NotifyError(f"Azure CLI non risponde ({type(e).__name__})") from None
+    if r.returncode != 0 or not r.stdout.strip():
+        hint = "accesso scaduto o mancante: esegui az login" if "login" in r.stderr.lower() else "errore di az"
+        raise NotifyError(f"token Azure non disponibile ({hint})")
+    return r.stdout.strip()
+
+
+def _teams_url(tm: dict, signed: bool = True) -> str:
     url = read_token(tm.get("webhook_env"), tm.get("keychain_service"), tm.get("keychain_account"))
     if not url:
         raise NotifyError("indirizzo del Workflow Teams non disponibile")
     if not url.startswith("https://"):
         raise NotifyError("indirizzo del Workflow Teams non valido (deve iniziare con https://)")
-    if "sig=" not in url:
+    if signed and "sig=" not in url:
         # due cause note: il prompt di `security … -w` tronca a 128 caratteri, oppure il trigger
         # del Workflow accetta solo utenti del tenant (OAuth) e l'URL nasce senza firma
         raise NotifyError("indirizzo del Workflow Teams senza firma sig=: salvalo con -w \"$(pbpaste)\" "
-                          "e, nel trigger del Workflow, imposta «Chi può attivare il flusso» su «Chiunque»")
+                          "e, nel trigger, imposta «Chi può attivare il flusso» su «Chiunque» "
+                          "oppure usa auth: azure-cli")
     return url
 
 
@@ -163,15 +190,21 @@ def teams_card(text: str) -> dict:
                     "type": "AdaptiveCard", "version": "1.4", "body": body}}]}
 
 
-def _post_teams(url: str, text: str):
-    """POST della card al Workflow. Gli errori non riportano mai l'URL, che contiene la firma."""
-    req = urllib.request.Request(url, data=json.dumps(teams_card(text)).encode(),
-                                 headers={"Content-Type": "application/json"}, method="POST")
+def _post_teams(url: str, text: str, token: str = None):
+    """POST della card al Workflow. Gli errori non riportano mai l'URL né il token."""
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, data=json.dumps(teams_card(text)).encode(), headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=30):
             pass
     except urllib.error.HTTPError as e:
-        raise NotifyError(f"Teams ha risposto {e.code}") from None
+        try:
+            code = (json.loads(e.read().decode()).get("error") or {}).get("code", "")
+        except (ValueError, AttributeError):
+            code = ""
+        raise NotifyError(f"Teams ha risposto {e.code} {code}".strip()) from None
     except (urllib.error.URLError, OSError, ValueError) as e:
         raise NotifyError(f"Teams non raggiungibile ({type(getattr(e, 'reason', e)).__name__})") from None
 
@@ -181,6 +214,9 @@ def _post_teams(url: str, text: str):
 def _sender(name: str, conf: dict):
     """Funzione che invia un testo sul canale; solleva NotifyError se la configurazione è incompleta."""
     if name == "teams":
+        if conf.get("auth") == "azure-cli":
+            url, token = _teams_url(conf, signed=False), _azure_token(conf)
+            return lambda text: _post_teams(url, text, token)
         url = _teams_url(conf)
         return lambda text: _post_teams(url, text)
     if not conf.get("chat_id"):       # canale non ancora configurato: i messaggi aspettano in coda

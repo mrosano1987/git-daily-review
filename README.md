@@ -233,11 +233,14 @@ when a webhook request is received* (or *Post to a chat…*), pick the channel,
 copy the URL it shows and store it in the Keychain from the clipboard (the
 interactive `-w` prompt cuts input at 128 characters, shorter than these URLs):
 `security add-generic-password -U -s git-daily-review-teams -a "$USER" -w "$(pbpaste)"; pbcopy </dev/null`.
-The URL must carry the access signature (`sig=`): if it does not, open the
-Workflow, set the trigger's *Who can trigger the flow* to *Anyone* and copy the
-new URL (with *Any user in my tenant* Teams answers 401
-`DirectApiAuthorizationRequired`). Anyone holding the URL can post to the
-channel, so treat it as a token. Messages arrive as Adaptive Cards.
+With the trigger's *Who can trigger the flow* set to *Anyone* the URL carries
+an access signature (`sig=`): anyone holding it can post, so treat it as a
+token. Many tenants only allow *Any user in my tenant*; Teams then answers 401
+`DirectApiAuthorizationRequired` without a user token. In that case install
+Azure CLI (`brew install azure-cli`), sign in once with `az login` and set
+`auth: azure-cli` under `notify.teams`: each send asks `az` for a Power
+Automate token of your account (never stored by this project; Azure CLI
+refreshes it). Messages arrive as Adaptive Cards.
 
 **Telegram.** Store the bot token with
 `security add-generic-password -U -s git-daily-review-telegram -a "$USER" -w`,
