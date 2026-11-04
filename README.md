@@ -216,6 +216,51 @@ verdict is final. `format: agy-json` reads `agy -p … --output-format json`.
 In headless mode Antigravity cannot ask for permissions, so pass the reviewed
 repositories with `--add-dir` (files outside the workspace are denied).
 
+### Notifications (Teams or Telegram) and evening watchdog
+
+With `notify` in `routine/agent.yaml`, `agent_run.py end` posts the day's
+outcome and `begin` posts when a backup takes over an interrupted run.
+Messages carry outcomes and counts only: no repository, file, author or
+finding text.
+
+`scripts/notify.py watchdog` (launchd template
+`routine/com.gitdailyreview.watchdog.plist`, 21:00) is plain Python: it warns
+when no harness closed the day, even if every agent app is closed or out of
+credit.
+
+**Teams.** In Teams, create a Workflow from the template *Post to a channel
+when a webhook request is received* (or *Post to a chat…*), pick the channel,
+copy the URL it shows and store it in the Keychain from the clipboard (the
+interactive `-w` prompt cuts input at 128 characters, shorter than these URLs):
+`security add-generic-password -U -s git-daily-review-teams -a "$USER" -w "$(pbpaste)"; pbcopy </dev/null`.
+With the trigger's *Who can trigger the flow* set to *Anyone* the URL carries
+an access signature (`sig=`): anyone holding it can post, so treat it as a
+token. Many tenants only allow *Any user in my tenant*; Teams then answers 401
+`DirectApiAuthorizationRequired` without a user token. In that case install
+Azure CLI (`brew install azure-cli`), sign in once with `az login` and set
+`auth: azure-cli` under `notify.teams`: each send asks `az` for a Power
+Automate token of your account (never stored by this project; Azure CLI
+refreshes it).
+
+With `detail: full` under `notify.teams`, the run summary becomes a card with
+the steps run, the day's numbers, a line per repository, the top
+critical/error findings, each autofix attempt with the reviewer's verdict and
+a button to the PR, and the briefing's headline and open question. Author
+names and the per-author mentoring section never leave the local briefing,
+since the channel is shared with the team. Telegram always gets the
+outcome-only text. Messages arrive as Adaptive Cards.
+
+**Telegram.** Store the bot token with
+`security add-generic-password -U -s git-daily-review-telegram -a "$USER" -w`,
+find the channel id with `python3 scripts/notify.py chat-ids`. Some managed
+Macs block `api.telegram.org` (e.g. Microsoft Defender web filtering): use
+Teams there.
+
+`python3 scripts/notify.py test` sends a test message. When the channel is
+unreachable or not fully configured, messages wait in `data/notify-outbox.jsonl`
+and go out later, marked as late with their original time;
+`routine/com.gitdailyreview.notify-flush.plist` retries every 30 minutes.
+
 ---
 
 ## MCP server (use it as an agent)
@@ -315,6 +360,8 @@ git-daily-review/
 │   ├── catch_up.py             ← skipped-run detection and single-run recovery
 │   ├── autofix.py              ← findings → worktree fix → bot review → PR (gated)
 │   ├── agent_run.py            ← one completed daily run across harnesses (lock + marker)
+│   ├── notify.py               ← Teams/Telegram outcome messages + evening watchdog
+│   ├── keychain.py             ← tokens from env or macOS Keychain, never printed
 │   ├── portal.py               ← local web portal (HTTP server, read-only API)
 │   ├── review_db.py            ← SQLite review database: schema, import from reports, queries
 │   ├── portal_data.py          ← git-flow layout, releases, git show fallback

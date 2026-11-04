@@ -17,6 +17,7 @@ T0 = datetime(2026, 11, 2, 17, 10)
 class AgentRunTest(unittest.TestCase):
     def setUp(self):
         agent_run.RUNS_DIR = Path(tempfile.mkdtemp())
+        agent_run.NOTIFY_ENABLED = False
 
     def test_backup_skips_completed_day(self):
         self.assertEqual(agent_run.begin(DAY, "claude", now=T0)[0], agent_run.PROCEED)

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Retries queued notifications (Teams/Telegram) every 30 minutes.
+
+  Messages queue in data/notify-outbox.jsonl when the channel is unreachable
+  or its configuration is incomplete; this job sends them as soon
+  as the Mac is on a network that lets them through. With an empty queue it
+  makes no network call. Install (adapt the path if the project is not in
+  ~/Progetti):
+    cp routine/com.gitdailyreview.notify-flush.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.gitdailyreview.notify-flush.plist
+  Logs to /tmp/gdr-notify-flush.*.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.gitdailyreview.notify-flush</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>cd $HOME/Progetti/git-daily-review &amp;&amp; exec .venv/bin/python3 scripts/notify.py flush</string>
+    </array>
+    <key>StartInterval</key><integer>1800</integer>
+    <key>StandardOutPath</key><string>/tmp/gdr-notify-flush.out</string>
+    <key>StandardErrorPath</key><string>/tmp/gdr-notify-flush.err</string>
+</dict>
+</plist>

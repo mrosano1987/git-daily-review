@@ -13,6 +13,9 @@ Questo file è il punto d'incontro:
 Una run "in corso" da più di `--stale-hours` ore si considera interrotta
 (sessione chiusa, credito finito a metà) e la riserva può subentrare.
 Stato in data/agent-runs/<giorno>.json (gitignored).
+
+La chiusura di una run e il subentro della riserva vengono notificati su
+Teams/Telegram se configurato (scripts/notify.py); GDR_NOTIFY=off li disattiva.
 """
 
 import argparse
@@ -26,6 +29,8 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 RUNS_DIR = Path(os.environ.get("GDR_AGENT_RUNS_DIR") or ROOT_DIR / "data" / "agent-runs")
 
 PROCEED, DONE, RUNNING = 0, 3, 4
+WARNINGS = ("rag", "ingest", "ollama", "review", "autofix")
+NOTIFY_ENABLED = os.environ.get("GDR_NOTIFY", "on") != "off"
 
 
 def _path(day: str) -> Path:
@@ -50,6 +55,20 @@ def _now() -> datetime:
     return datetime.now().replace(microsecond=0)
 
 
+def _notify(build) -> str:
+    """Invia la notifica costruita da `build(notify)`. Non fa mai fallire la run."""
+    if not NOTIFY_ENABLED:
+        return "notifiche disattivate"
+    try:
+        import notify
+        msg = build(notify)
+        text, card = msg if isinstance(msg, tuple) else (msg, None)
+        ok, detail = notify.send(text, card=card)
+        return f"notifica {detail}"
+    except Exception as e:  # noqa: BLE001 — la notifica è accessoria
+        return f"notifica non inviata ({type(e).__name__})"
+
+
 def begin(day: str, harness: str, stale_hours: float = 4, now: datetime = None) -> tuple:
     now = now or _now()
     data = load(day)
@@ -64,18 +83,23 @@ def begin(day: str, harness: str, stale_hours: float = 4, now: datetime = None) 
         data["attempts"].append(running)
     data["running"] = {"harness": harness, "started_at": now.isoformat()}
     _save(day, data)
-    return PROCEED, f"run avviata su {harness}" + (f" (la precedente su {running['harness']} era interrotta)" if running else "")
+    if running:
+        sent = _notify(lambda n: n.takeover_text(day, running, harness))
+        return PROCEED, f"run avviata su {harness} (la precedente su {running['harness']} era interrotta; {sent})"
+    return PROCEED, f"run avviata su {harness}"
 
 
-def end(day: str, harness: str, status: str = "ok", note: str = "", now: datetime = None) -> str:
+def end(day: str, harness: str, status: str = "ok", note: str = "", warnings=(), now: datetime = None) -> str:
+    """Chiude la giornata. `note` resta in locale; nella notifica vanno solo stato, conteggi e `warnings`."""
     now = now or _now()
     data = load(day)
     running = data.pop("running", None) or {"harness": harness, "started_at": None}
     running.update(outcome=status, ended_at=now.isoformat())
     data["attempts"].append(running)
-    data["done"] = {"harness": harness, "at": now.isoformat(), "status": status, "note": note}
+    data["done"] = {"harness": harness, "at": now.isoformat(), "status": status, "note": note,
+                    "warnings": [w for w in warnings if w in WARNINGS]}
     _save(day, data)
-    return f"giornata {day} chiusa da {harness} ({status})"
+    return f"giornata {day} chiusa da {harness} ({status}); " + _notify(lambda n: n.run_message(day))
 
 
 def main(argv=None) -> int:
@@ -89,7 +113,9 @@ def main(argv=None) -> int:
     e = sub.add_parser("end", parents=[common])
     e.add_argument("--harness", required=True)
     e.add_argument("--status", choices=["ok", "partial"], default="ok")
-    e.add_argument("--note", default="")
+    e.add_argument("--note", default="", help="nota locale, non inviata nelle notifiche")
+    e.add_argument("--warn", action="append", choices=WARNINGS, default=[],
+                   help="avviso da riportare nella notifica (ripetibile)")
     sub.add_parser("status", parents=[common])
     a = p.parse_args(argv)
 
@@ -98,7 +124,7 @@ def main(argv=None) -> int:
         print(msg)
         return code
     if a.cmd == "end":
-        print(end(a.date, a.harness, a.status, a.note))
+        print(end(a.date, a.harness, a.status, a.note, a.warn))
         return 0
     print(json.dumps(load(a.date), ensure_ascii=False, indent=2))
     return 0
