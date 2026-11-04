@@ -240,7 +240,15 @@ token. Many tenants only allow *Any user in my tenant*; Teams then answers 401
 Azure CLI (`brew install azure-cli`), sign in once with `az login` and set
 `auth: azure-cli` under `notify.teams`: each send asks `az` for a Power
 Automate token of your account (never stored by this project; Azure CLI
-refreshes it). Messages arrive as Adaptive Cards.
+refreshes it).
+
+With `detail: full` under `notify.teams`, the run summary becomes a card with
+the steps run, the day's numbers, a line per repository, the top
+critical/error findings, each autofix attempt with the reviewer's verdict and
+a button to the PR, and the briefing's headline and open question. Author
+names and the per-author mentoring section never leave the local briefing,
+since the channel is shared with the team. Telegram always gets the
+outcome-only text. Messages arrive as Adaptive Cards.
 
 **Telegram.** Store the bot token with
 `security add-generic-password -U -s git-daily-review-telegram -a "$USER" -w`,

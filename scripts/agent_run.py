@@ -61,7 +61,9 @@ def _notify(build) -> str:
         return "notifiche disattivate"
     try:
         import notify
-        ok, detail = notify.send(build(notify))
+        msg = build(notify)
+        text, card = msg if isinstance(msg, tuple) else (msg, None)
+        ok, detail = notify.send(text, card=card)
         return f"notifica {detail}"
     except Exception as e:  # noqa: BLE001 — la notifica è accessoria
         return f"notifica non inviata ({type(e).__name__})"
@@ -97,7 +99,7 @@ def end(day: str, harness: str, status: str = "ok", note: str = "", warnings=(),
     data["done"] = {"harness": harness, "at": now.isoformat(), "status": status, "note": note,
                     "warnings": [w for w in warnings if w in WARNINGS]}
     _save(day, data)
-    return f"giornata {day} chiusa da {harness} ({status}); " + _notify(lambda n: n.run_summary(day))
+    return f"giornata {day} chiusa da {harness} ({status}); " + _notify(lambda n: n.run_message(day))
 
 
 def main(argv=None) -> int:

@@ -24,6 +24,7 @@ notify:                          # opzionale: notifiche (solo esiti e conteggi) 
     keychain_service: git-daily-review-teams      # URL del Workflow nel Portachiavi (contiene la firma)
     # webhook_env: GDR_TEAMS_WEBHOOK              # in alternativa, variabile d'ambiente
     # auth: azure-cli            # trigger «Qualsiasi utente nel tenant»: token del tuo account via `az login`
+    # detail: full               # card con passi, repository, finding, autofix e briefing (mai autori)
   # telegram:                    # alternativa a teams (con entrambi, `channel: telegram` lo sceglie)
   #   chat_id: "@my_channel"     # o l'id numerico (-100…): `python3 scripts/notify.py chat-ids`
   #   keychain_service: git-daily-review-telegram # token del bot nel Portachiavi

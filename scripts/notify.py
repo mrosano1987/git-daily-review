@@ -5,10 +5,16 @@ Un messaggio quando una run si chiude, uno quando la riserva subentra a una
 run interrotta e, dal watchdog serale, uno quando la giornata non risulta
 chiusa da nessun harness.
 
-I messaggi contengono SOLO esiti e conteggi (stato, harness, orari, numero
+Il testo base contiene SOLO esiti e conteggi (stato, harness, orari, numero
 di commit, quality score, finding per severità, esiti dell'autofix, avvisi da
 un elenco chiuso): nessun nome di repository, file, autore o testo di
-finding.
+finding. È l'unico formato per Telegram, fuori dal perimetro aziendale.
+
+Su Teams, con `detail: full`, il riepilogo della run è una card con i passi
+eseguiti, un riassunto per repository, i finding critical/error, gli esiti
+dell'autofix con la risposta del revisore e il link alla PR, il titolo e la
+domanda per il team del briefing. Mai nomi di autori né segnali di mentoring:
+il canale è condiviso col team.
 
 Configurazione in routine/agent.yaml (un solo canale; `channel` sceglie se
 ce ne sono due):
@@ -19,6 +25,7 @@ ce ne sono due):
         keychain_service: git-daily-review-teams   # URL del Workflow nel Portachiavi
         webhook_env: GDR_TEAMS_WEBHOOK             # alternativa al Portachiavi
         auth: azure-cli                # se il trigger accetta solo utenti del tenant
+        detail: full                   # card dettagliata della run (default: outcome)
       telegram:
         chat_id: "-1001234567890"      # o "@nome_canale"
         keychain_service: git-daily-review-telegram
@@ -47,6 +54,7 @@ ritenta ogni 30 minuti (a coda vuota non fa chiamate di rete).
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -184,18 +192,23 @@ def teams_card(text: str) -> dict:
     lines = text.splitlines() or [""]
     body = [{"type": "TextBlock", "text": lines[0], "weight": "Bolder", "wrap": True}]
     body += [{"type": "TextBlock", "text": line, "wrap": True, "spacing": "None"} for line in lines[1:]]
+    return _wrap_card(body)
+
+
+def _wrap_card(body: list) -> dict:
     return {"type": "message", "attachments": [{
         "contentType": "application/vnd.microsoft.card.adaptive", "contentUrl": None,
         "content": {"$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                     "type": "AdaptiveCard", "version": "1.4", "body": body}}]}
 
 
-def _post_teams(url: str, text: str, token: str = None):
-    """POST della card al Workflow. Gli errori non riportano mai l'URL né il token."""
+def _post_teams(url: str, text: str, token: str = None, card: list = None):
+    """POST della card al Workflow (`card`: corpo già pronto). Gli errori non riportano mai l'URL né il token."""
     headers = {"Content-Type": "application/json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    req = urllib.request.Request(url, data=json.dumps(teams_card(text)).encode(), headers=headers, method="POST")
+    payload = _wrap_card(card) if card else teams_card(text)
+    req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=30):
             pass
@@ -214,16 +227,16 @@ def _post_teams(url: str, text: str, token: str = None):
 def _sender(name: str, conf: dict):
     """Funzione che invia un testo sul canale; solleva NotifyError se la configurazione è incompleta."""
     if name == "teams":
-        if conf.get("auth") == "azure-cli":
-            url, token = _teams_url(conf, signed=False), _azure_token(conf)
-            return lambda text: _post_teams(url, text, token)
-        url = _teams_url(conf)
-        return lambda text: _post_teams(url, text)
+        signed = conf.get("auth") != "azure-cli"
+        url = _teams_url(conf, signed=signed)
+        token = None if signed else _azure_token(conf)
+        full = conf.get("detail") == "full"
+        return lambda text, card=None: _post_teams(url, text, token, card if full else None)
     if not conf.get("chat_id"):       # canale non ancora configurato: i messaggi aspettano in coda
         raise NotifyError("chat_id del canale non ancora configurato")
     token = _token(conf)
-    return lambda text: _call(token, "sendMessage", {"chat_id": conf["chat_id"], "text": text,
-                                                     "disable_web_page_preview": "true"})
+    return lambda text, card=None: _call(token, "sendMessage", {"chat_id": conf["chat_id"], "text": text,
+                                                                "disable_web_page_preview": "true"})
 
 
 def _queue(items: list):
@@ -239,8 +252,11 @@ def _queued() -> list:
         return []
 
 
-def send(text: str, cfg: dict = None) -> tuple:
+def send(text: str, cfg: dict = None, card: list = None) -> tuple:
     """Invia prima i messaggi in coda, poi `text`. Se il canale non risponde, ciò che resta va in coda.
+
+    `card` è il corpo della card dettagliata: la usa solo Teams con `detail: full`, gli altri canali
+    ricevono `text`.
 
     Ritorna (inviato, dettaglio); non solleva eccezioni.
     """
@@ -249,17 +265,22 @@ def send(text: str, cfg: dict = None) -> tuple:
     if not name:
         return False, "notifiche non configurate (notify.teams o notify.telegram)"
     late = _queued()
-    pending = late + ([{"at": datetime.now().isoformat(timespec="minutes"), "text": text}] if text else [])
+    new = {"at": datetime.now().isoformat(timespec="minutes"), "text": text}
+    if card:
+        new["card"] = card
+    pending = late + ([new] if text else [])
     if not pending:
         return True, "nessun messaggio da inviare"
     try:
         deliver = _sender(name, conf)
         for i, item in enumerate(pending):
-            body = item["text"]
+            body, card = item["text"], item.get("card")
             if i < len(late):
-                body += f"\n(in ritardo: generato alle {item['at'][11:16]} del {item['at'][:10]})"
+                note = f"(in ritardo: generato alle {item['at'][11:16]} del {item['at'][:10]})"
+                body += "\n" + note
+                card = card and card + [{"type": "TextBlock", "text": note, "isSubtle": True, "wrap": True}]
             try:
-                deliver(body)
+                deliver(body, card)
             except NotifyError:
                 pending = pending[i:]
                 raise
@@ -359,6 +380,143 @@ def watchdog_text(day: str, cfg: dict = None) -> str:
 
 
 # ══════════════════════════════════════════════════════════════
+#  CARD DETTAGLIATA (solo Teams, dentro il tenant)
+# ══════════════════════════════════════════════════════════════
+
+SEV_ICON = {"critical": "🔴", "error": "🟠"}
+STEP_WARN = (("RAG", ("rag",)), ("Confluence", ("ingest",)), ("review", ("ollama", "review")),
+             ("autofix", ("autofix",)))
+URL_RX = re.compile(r"https://\S+")
+
+
+def _cut(text: str, n: int) -> str:
+    text = " ".join(str(text or "").split())
+    return text if len(text) <= n else text[:n - 1].rstrip() + "…"
+
+
+def _redact(text: str, names) -> str:
+    for name in sorted({n for n in names if n}, key=len, reverse=True):
+        text = re.sub(rf"\*{{0,2}}{re.escape(name)}\*{{0,2}}", "l'autore", text)
+    return text
+
+
+def _briefing_section(day: str, letter: str) -> str:
+    """Testo della sezione «## (x) …» del briefing, senza titolo."""
+    try:
+        text = (REPORTS_DIR / day / "briefing.md").read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    m = re.search(rf"^## \({letter}\)[^\n]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
+    return m.group(1).strip() if m else ""
+
+
+def _heading(text: str) -> dict:
+    return {"type": "TextBlock", "text": text, "weight": "Bolder", "spacing": "Medium", "wrap": True}
+
+
+def _line(text: str) -> dict:
+    return {"type": "TextBlock", "text": text, "wrap": True, "spacing": "Small"}
+
+
+def run_card(day: str, cfg: dict = None) -> list:
+    """Corpo della card Teams con i dettagli della run. Nessun nome di autore."""
+    cfg = cfg if cfg is not None else load_config()
+    head, *rest = run_summary(day, cfg).splitlines()
+    runs = agent_run.load(day)
+    done = runs.get("done") or {}
+    warnings = set(done.get("warnings", []))
+    try:
+        dash = json.loads((REPORTS_DIR / day / "dashboard-data.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        dash = {}
+    try:
+        attempts = [a for a in json.loads(AUTOFIX_STATE.read_text(encoding="utf-8")).get("attempts", {}).values()
+                    if a.get("run_day") == day]
+    except (OSError, ValueError):
+        attempts = []
+    authors = set(dash.get("authors") or {}) | {a.get("author") for a in attempts}
+
+    body = [{"type": "TextBlock", "text": head, "weight": "Bolder", "size": "Medium", "wrap": True},
+            {"type": "TextBlock", "text": rest[0] if rest else "", "isSubtle": True, "spacing": "None", "wrap": True}]
+    steps = [f"{name} {'⚠️' if warnings & set(keys) else '✓'}" for name, keys in STEP_WARN]
+    steps.insert(3, f"briefing {'✓' if (REPORTS_DIR / day / 'briefing.md').exists() else '—'}")
+    trend = dash.get("trend") or []
+    quality = dash.get("quality_avg")
+    q = f"{quality:.1f}/10" if isinstance(quality, (int, float)) else "n/d"
+    if len(trend) > 1 and isinstance(trend[-2].get("quality"), (int, float)):
+        q += f" (prima {trend[-2]['quality']:.1f})"
+    sev = dash.get("findings_by_severity") or {}
+    facts = [("Passi", " · ".join(steps)), ("Commit", str((dash.get("totals") or {}).get("commits", 0))),
+             ("Qualità", q), ("Finding", " · ".join(f"{sev.get(k, 0)} {k}" for k in ("critical", "error", "warning"))),
+             ("Autofix", _autofix_line(day).removeprefix("Autofix: "))]
+    body.append({"type": "FactSet", "facts": [{"title": t, "value": v} for t, v in facts]})
+
+    headline = _briefing_section(day, "a")
+    if headline:
+        body += [_heading("In breve"), _line(_cut(_redact(headline, authors), 600))]
+
+    repos, findings = dash.get("repos") or [], []
+    if repos:
+        body.append(_heading("Repository"))
+    for r in repos:
+        commits = [c for b in r.get("branches") or [] for c in b.get("commits") or []]
+        rq = r.get("quality_avg")
+        body.append(_line(f"**{r.get('name')}** · {len(commits)} commit · "
+                          f"{f'{rq:.1f}/10' if isinstance(rq, (int, float)) else 'n/d'} — "
+                          + _cut(_redact(r.get("summary", ""), authors), 220)))
+        findings += [(r.get("name"), c.get("short_hash"), f) for c in commits for f in c.get("findings") or []
+                     if f.get("severity") in SEV_ICON]
+    if findings:
+        findings.sort(key=lambda x: list(SEV_ICON).index(x[2]["severity"]))
+        body.append(_heading("Da guardare"))
+        for repo, short, f in findings[:5]:
+            where = f"{f.get('file')}:{f.get('line')}" if f.get("line") else f.get("file")
+            body.append(_line(f"{SEV_ICON[f['severity']]} {f.get('rule_id')} · {repo}@{short} · `{_cut(where, 80)}` — "
+                              + _cut(_redact(f.get("message", ""), authors), 180)))
+        if len(findings) > 5:
+            body.append(_line(f"…e altri {len(findings) - 5}"))
+
+    actions = []
+    if attempts:
+        body.append(_heading("Autofix"))
+    for a in attempts:
+        icon = {"published": "✅", "pushed": "📤", "skipped": "⏭️", "abandoned": "🛑"}.get(a.get("status"), "⏳")
+        text = f"{icon} **{a.get('id')}** · {a.get('status')}"
+        reviews = a.get("reviews") or []
+        if reviews:
+            rv = reviews[-1]
+            text += f" · revisione {rv.get('reviewer') or 'EdisonBot'}: {rv.get('verdict') or '—'}"
+            if rv.get("reason"):
+                text += f" ({_cut(rv['reason'], 120)})"
+        if a.get("reason"):
+            text += " — " + _cut(_redact(a["reason"], authors), 220)
+        body.append(_line(text))
+        link = a.get("pr_url") or next(iter(URL_RX.findall(a.get("pr_problem") or "")), None)
+        if link and len(actions) < 4:
+            actions.append({"type": "Action.OpenUrl", "url": link,
+                            "title": f"{'PR' if a.get('pr_url') else 'Apri PR'} {a.get('id', '').split('@')[-1]}"})
+    if actions:
+        body.append({"type": "ActionSet", "actions": actions})
+
+    question = _briefing_section(day, "e")
+    if question:
+        body += [_heading("Domanda per il team"), _line(_cut(_redact(question, authors), 400))]
+    extra = rest[3:]                                        # avvisi e run interrotte del riepilogo
+    if extra or done.get("note"):
+        body.append(_heading("Note"))
+        body += [_line(x) for x in extra]
+        if done.get("note"):
+            body.append(_line(_cut(_redact(done["note"], authors), 300)))
+    return body
+
+
+def run_message(day: str, cfg: dict = None) -> tuple:
+    """(testo con soli esiti, card dettagliata) per il riepilogo della run."""
+    cfg = cfg if cfg is not None else load_config()
+    return run_summary(day, cfg), run_card(day, cfg)
+
+
+# ══════════════════════════════════════════════════════════════
 #  CLI
 # ══════════════════════════════════════════════════════════════
 
@@ -392,15 +550,18 @@ def main(argv=None) -> int:
         return 0 if ok else 1
     if a.cmd == "test":
         text = f"🔔 {load_config().get('label', 'git-daily-review')}: notifiche attive ({datetime.now():%Y-%m-%d %H:%M})"
-    elif a.cmd == "send":
-        text = run_summary(a.date)
+    card = None
+    if a.cmd == "send":
+        text, card = run_message(a.date)
     else:
-        text = watchdog_text(a.date) or (run_summary(a.date) if a.always else "")
+        text = watchdog_text(a.date)
+        if not text and a.always:
+            text, card = run_message(a.date)
         if not text:
             ok, detail = send("")          # giornata chiusa: si limita a svuotare la coda
             print(f"giornata {a.date} chiusa: nessun avviso · coda: {detail}")
             return 0
-    ok, detail = send(text)
+    ok, detail = send(text, card=card)
     print(f"notifica {detail}")
     return 0 if ok else 1
 

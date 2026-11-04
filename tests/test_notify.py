@@ -36,7 +36,9 @@ class NotifyTest(unittest.TestCase):
             "d@3": {"status": "published", "run_day": "2026-11-01"}}}))
         self.sent = []
         notify.load_config = lambda: CFG
-        notify.send = lambda text, cfg=None: (self.sent.append(text) or True, "inviata")
+        self.cards = []
+        notify.send = lambda text, cfg=None, card=None: (self.sent.append(text) or self.cards.append(card) or True,
+                                                         "inviata")
 
     def test_summary_has_only_outcomes_and_counts(self):
         agent_run.begin(DAY, "claude", now=T0)
@@ -50,6 +52,35 @@ class NotifyTest(unittest.TestCase):
             self.assertIn(expected, text)
         for leaked in ("client_secret_repo", "Mario Rossi", "testo riservato", "autofix/x", "bogus"):
             self.assertNotIn(leaked, text)
+
+    def test_card_has_details_but_no_authors(self):
+        (notify.REPORTS_DIR / DAY / "briefing.md").write_text(
+            "# Briefing\n\n## (a) Trend e headline\nOggi 9 commit, buona giornata di **Mario Rossi**.\n\n"
+            "## (c) Segnali di mentoring per autore\n- Mario Rossi: messaggi generici.\n\n"
+            "## (e) Domanda aperta per il team\nDisattiviamo l'auto-merge?\n")
+        data = json.loads((notify.REPORTS_DIR / DAY / "dashboard-data.json").read_text())
+        data["repos"] = [{"name": "client_secret_repo", "summary": "Fix regex di Mario Rossi", "quality_avg": 8.0,
+                          "branches": [{"name": "b", "commits": [{"short_hash": "abc", "author": "Mario Rossi",
+                                        "findings": [{"rule_id": "TS-001", "severity": "critical", "file": "a.ts",
+                                                      "line": "3", "message": "regex imprecisa"},
+                                                     {"rule_id": "DOC-1", "severity": "info", "file": "a.ts",
+                                                      "message": "manca jsdoc"}]}]}]}]
+        (notify.REPORTS_DIR / DAY / "dashboard-data.json").write_text(json.dumps(data))
+        state = json.loads(notify.AUTOFIX_STATE.read_text())
+        state["attempts"]["client_secret_repo@abc"].update(
+            author="Mario Rossi", reason="corretto il log", pr_problem="PR da aprire a mano: https://bb.example/new?x=1",
+            reviews=[{"verdict": "APPROVATO", "reviewer": "EdisonBot (Claude)", "reason": None}])
+        notify.AUTOFIX_STATE.write_text(json.dumps(state))
+        agent_run.begin(DAY, "claude", now=T0)
+        agent_run.end(DAY, "claude", now=T0 + timedelta(minutes=20))
+        card = json.dumps(self.cards[-1], ensure_ascii=False)
+        for expected in ("Passi", "client_secret_repo", "TS-001", "regex imprecisa", "corretto il log",
+                         "EdisonBot (Claude): APPROVATO", "https://bb.example/new?x=1", "Disattiviamo",
+                         "buona giornata di l'autore"):
+            self.assertIn(expected, card)
+        for leaked in ("Mario Rossi", "mentoring", "messaggi generici", "manca jsdoc"):
+            self.assertNotIn(leaked, card)
+        self.assertNotIn("client_secret_repo", self.sent[-1])     # il testo base resta senza nomi
 
     def test_takeover_is_notified(self):
         agent_run.begin(DAY, "claude", now=T0)
@@ -136,7 +167,7 @@ class TeamsTest(unittest.TestCase):
         self.cfg = {"teams": {"keychain_service": "x"}, "telegram": {"chat_id": "@c"}}
         self.posts, self.offline = [], False
 
-        def post(url, text, token=None):
+        def post(url, text, token=None, card=None):
             if self.offline:
                 raise self.n.NotifyError("Teams non raggiungibile (TimeoutError)")
             self.posts.append((url, text, token))
@@ -177,6 +208,31 @@ class TeamsTest(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("az login", detail)
         self.assertEqual([i["text"] for i in self.n._queued()], ["dopo"])
+
+    def test_full_detail_card_only_when_asked(self):
+        self.n._azure_token = lambda conf: "tok"
+        card = [{"type": "TextBlock", "text": "dettagli"}]
+        seen = []
+        self.n._post_teams = lambda url, text, token=None, card=None: seen.append(card)
+        self.n.send("esito", {"teams": {"keychain_service": "x"}}, card=card)
+        self.n.send("esito", {"teams": {"keychain_service": "x", "detail": "full"}}, card=card)
+        self.assertEqual(seen, [None, card])
+
+    def test_queued_card_gets_late_note(self):
+        cfg = {"teams": {"keychain_service": "x", "detail": "full"}}
+        seen = []
+
+        def post(url, text, token=None, card=None):
+            if self.offline:
+                raise self.n.NotifyError("Teams non raggiungibile (TimeoutError)")
+            seen.append(card)
+        self.n._post_teams = post
+        self.offline = True
+        self.n.send("esito", cfg, card=[{"type": "TextBlock", "text": "dettagli"}])
+        self.offline = False
+        self.n.send("", cfg)
+        self.assertEqual(len(seen[0]), 2)
+        self.assertIn("in ritardo", seen[0][1]["text"])
 
     def test_card_has_one_block_per_line(self):
         card = self.n.teams_card("✅ titolo\nriga 1\nriga 2")
